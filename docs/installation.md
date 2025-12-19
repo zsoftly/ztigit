@@ -16,13 +16,20 @@ Pre-built binaries available for:
 ### Linux/macOS
 
 ```bash
-# Download (replace with your platform)
+# Linux (amd64)
 curl -L https://github.com/zsoftly/ztigit/releases/latest/download/ztigit-linux-amd64 -o ztigit
 
-# Make executable
-chmod +x ztigit
+# Linux (arm64)
+curl -L https://github.com/zsoftly/ztigit/releases/latest/download/ztigit-linux-arm64 -o ztigit
 
-# Move to PATH
+# macOS (Intel)
+curl -L https://github.com/zsoftly/ztigit/releases/latest/download/ztigit-darwin-amd64 -o ztigit
+
+# macOS (Apple Silicon)
+curl -L https://github.com/zsoftly/ztigit/releases/latest/download/ztigit-darwin-arm64 -o ztigit
+
+# Make executable and install
+chmod +x ztigit
 sudo mv ztigit /usr/local/bin/
 
 # Verify

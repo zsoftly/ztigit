@@ -1,32 +1,82 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Go build artifacts
+# Built binaries (local and cross-platform)
+/bin/
+/ztigit
+/ztigit.exe
+**/ztigit-*
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
 
-# Test binary, built with `go test -c`
-*.test
-
-# Code coverage profiles and other test artifacts
+# Go specific
 *.out
-coverage.*
-*.coverprofile
-profile.cov
-
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# Go workspace file
+*.test
 go.work
 go.work.sum
 
-# env file
-.env
+# Dependency directories
+# vendor/
 
-# Editor/IDE
-# .idea/
-# .vscode/
+# Test coverage files
+coverage.out
+coverage*.out
+coverage.html
+*.coverage
+coverage/
+*.coverprofile
+profile.cov
+
+# Test files
+*.log
+test_results/
+*_temp_test.go
+
+# Security scan reports
+gosec-report.json
+golangci-security-report.json
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Downloaded packages
+*.deb
+*.rpm
+*.pkg
+*.msi
+
+# Local development
+.env
+.env.local
+*.local
+
+# Debug files
+*.debug
+
+# Config files with secrets (keep templates)
+ztigit.yaml
+!ztigit.yaml.example
+
+# Claude/AI tools
+.claude/

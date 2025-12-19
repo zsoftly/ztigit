@@ -60,7 +60,7 @@ type Options struct {
 	Verbose       bool
 	MaxAgeMonths  int  // Skip repos not updated in this many months (0 = no limit)
 	SkipPreflight bool // Skip credential validation before cloning
-	PreferSSH     bool // Prefer SSH URLs over HTTPS for git operations
+	SSH           bool // Use SSH URLs instead of HTTPS for git operations
 }
 
 // DefaultOptions returns the default mirror options
@@ -123,7 +123,13 @@ func (m *Mirror) MirrorGroups(ctx context.Context, groups []string) ([]Result, e
 		if err != nil {
 			return nil, err
 		}
-		fmt.Printf("%s Git credentials OK (%s)\n\n", green("✓"), result.Method)
+		// Use the method that works - override SSH if needed
+		if result.Method == "ssh" && !m.options.SSH {
+			m.options.SSH = true
+			fmt.Printf("%s HTTPS unavailable, using SSH\n\n", green("✓"))
+		} else {
+			fmt.Printf("%s Git credentials OK (%s)\n\n", green("✓"), strings.ToUpper(result.Method))
+		}
 	}
 
 	return m.mirrorRepos(ctx, allRepos)
@@ -226,13 +232,13 @@ func (m *Mirror) mirrorRepo(ctx context.Context, repo provider.Repository) Resul
 		}
 	}
 
-	// Clone the repository - order depends on PreferSSH option
+	// Clone the repository - order depends on SSH option
 	fmt.Printf("  %s %s%s\n", cyan("↓"), repo.Name, sizeStr)
 
 	var primaryURL, fallbackURL string
 	var primaryMethod, fallbackMethod string
 
-	if m.options.PreferSSH {
+	if m.options.SSH {
 		primaryURL, fallbackURL = repo.SSHUrl, repo.CloneURL
 		primaryMethod, fallbackMethod = "SSH", "HTTPS"
 	} else {

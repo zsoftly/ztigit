@@ -2,7 +2,7 @@
 # Cross-platform build targets for GitLab/GitHub CLI tool
 
 BINARY_NAME=ztigit
-VERSION?=0.1.0
+VERSION?=0.0.1
 BUILD_DIR=bin
 CMD_DIR=cmd/ztigit
 

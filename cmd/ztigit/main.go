@@ -176,7 +176,10 @@ func runMirror(cmd *cobra.Command, args []string) error {
 	}
 
 	if opts.BaseDir == "" {
-		homeDir, _ := os.UserHomeDir()
+		homeDir, err := os.UserHomeDir()
+		if err != nil || homeDir == "" {
+			homeDir = "." // Fallback to current directory
+		}
 		opts.BaseDir = filepath.Join(homeDir, orgName)
 	}
 
@@ -266,6 +269,11 @@ func init() {
 
 func runProtect(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
+
+	// Validate that at least one of --provider or --url is specified
+	if protectProvider == "" && protectURL == "" {
+		return fmt.Errorf("at least one of --provider or --url must be specified")
+	}
 
 	// Determine provider
 	providerType := provider.ProviderType(protectProvider)

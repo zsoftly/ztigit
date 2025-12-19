@@ -3,6 +3,7 @@ package provider
 
 import (
 	"context"
+	"strings"
 	"time"
 )
 
@@ -81,26 +82,13 @@ func DetectProvider(url string) ProviderType {
 	}
 
 	// Check for common patterns
-	if containsAny(url, "gitlab") {
+	if strings.Contains(url, "gitlab") {
 		return ProviderGitLab
 	}
-	if containsAny(url, "github") {
+	if strings.Contains(url, "github") {
 		return ProviderGitHub
 	}
 
 	// Default to GitLab for self-hosted instances
 	return ProviderGitLab
-}
-
-func containsAny(s string, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && contains(s, substr))
-}
-
-func contains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

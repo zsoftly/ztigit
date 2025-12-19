@@ -59,7 +59,10 @@ type MirrorConfig struct {
 
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
-	homeDir, _ := os.UserHomeDir()
+	homeDir, err := os.UserHomeDir()
+	if err != nil || homeDir == "" {
+		homeDir = "." // Fallback to current directory
+	}
 
 	return &Config{
 		DefaultProvider: "gitlab",
@@ -87,7 +90,10 @@ func Load() (*Config, error) {
 	viper.SetConfigType("yaml")
 
 	// Config file locations
-	homeDir, _ := os.UserHomeDir()
+	homeDir, err := os.UserHomeDir()
+	if err != nil || homeDir == "" {
+		homeDir = "." // Fallback to current directory
+	}
 	viper.AddConfigPath(filepath.Join(homeDir, ".config", "ztigit"))
 	viper.AddConfigPath(filepath.Join(homeDir, ".ztigit"))
 	viper.AddConfigPath(".")
@@ -115,7 +121,10 @@ func Load() (*Config, error) {
 
 // GetConfigDir returns the configuration directory path
 func GetConfigDir() string {
-	homeDir, _ := os.UserHomeDir()
+	homeDir, err := os.UserHomeDir()
+	if err != nil || homeDir == "" {
+		homeDir = "." // Fallback to current directory
+	}
 	return filepath.Join(homeDir, ".config", "ztigit")
 }
 

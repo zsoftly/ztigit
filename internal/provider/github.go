@@ -92,7 +92,7 @@ func (p *GitHubProvider) ListGroupProjects(ctx context.Context, ownerName string
 	// If org fails, try as user
 	userRepos, userErr := p.listUserRepos(ctx, ownerName)
 	if userErr != nil {
-		return nil, fmt.Errorf("failed to list repositories for %s (tried org and user): %w", ownerName, err)
+		return nil, fmt.Errorf("failed to list repositories for %s (org error: %v, user error: %w)", ownerName, err, userErr)
 	}
 
 	repos = append(repos, userRepos...)

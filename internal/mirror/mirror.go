@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -63,7 +64,10 @@ type Options struct {
 
 // DefaultOptions returns the default mirror options
 func DefaultOptions() Options {
-	homeDir, _ := os.UserHomeDir()
+	homeDir, err := os.UserHomeDir()
+	if err != nil || homeDir == "" {
+		homeDir = "." // Fallback to current directory
+	}
 	return Options{
 		BaseDir:      filepath.Join(homeDir, "git-repos"),
 		Parallel:     4,
@@ -300,8 +304,7 @@ func (m *Mirror) updateRepo(ctx context.Context, dir string) error {
 		return fmt.Errorf("failed to get current branch: %w", err)
 	}
 
-	branch := string(branchOutput)
-	branch = branch[:len(branch)-1] // Remove trailing newline
+	branch := strings.TrimSpace(string(branchOutput))
 
 	// Check if there are local changes
 	statusCmd := exec.CommandContext(ctx, "git", "-C", dir, "status", "--porcelain")

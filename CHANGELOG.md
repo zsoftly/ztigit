@@ -44,6 +44,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), using
 - **Secure config directory**: Created with 0700 permissions
 - **Token display**: Shows `***configured***` instead of partial token
 
+### Known Limitations
+
+- **GitHub environment protection**: The `protect` command creates environments on GitHub but cannot
+  configure protection rules (reviewers, wait timers). GitHub's API requires team or user IDs for
+  reviewers, which this tool does not currently support. Configure protection rules via GitHub UI.
+
 ### Technical
 
 - Go 1.24 with cobra CLI framework

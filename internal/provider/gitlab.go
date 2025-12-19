@@ -256,7 +256,8 @@ func (p *GitLabProvider) ProtectEnvironment(ctx context.Context, projectPath, en
 	if rule.RequiredApprovals > 0 {
 		opts.ApprovalRules = &[]*gitlab.EnvironmentApprovalRuleOptions{
 			{
-				AccessLevel: gitlab.Ptr(gitlab.AccessLevelValue(rule.AccessLevel)),
+				AccessLevel:           gitlab.Ptr(gitlab.AccessLevelValue(rule.AccessLevel)),
+				RequiredApprovalCount: gitlab.Ptr(int64(rule.RequiredApprovals)),
 			},
 		}
 	}

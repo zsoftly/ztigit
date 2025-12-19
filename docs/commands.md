@@ -177,17 +177,24 @@ Protect environments matching a pattern.
 ztigit protect --project <path> --pattern <pattern> [options]
 ```
 
-| Flag               | Required | Description                                |
-| ------------------ | -------- | ------------------------------------------ |
-| `--project`, `-P`  | Yes      | Project path                               |
-| `--pattern`        | Yes      | Environment name pattern (prefix or `all`) |
-| `--provider`, `-p` | No       | Provider                                   |
-| `--url`, `-u`      | No       | Base URL                                   |
-| `--dry-run`        | No       | Show what would be protected               |
-| `--access-level`   | No       | Required access level (default: 30)        |
-| `--approvals`      | No       | Required approvals (default: 1)            |
+| Flag               | Required | Description                                 |
+| ------------------ | -------- | ------------------------------------------- |
+| `--project`, `-P`  | Yes      | Project path                                |
+| `--pattern`        | Yes      | Environment name pattern (prefix or `all`)  |
+| `--provider`, `-p` | No       | Provider (required if `--url` not set)      |
+| `--url`, `-u`      | No       | Base URL (required if `--provider` not set) |
+| `--dry-run`        | No       | Show what would be protected                |
+| `--access-level`   | No       | Required access level (default: 30)         |
+| `--approvals`      | No       | Required approvals (default: 1)             |
 
-Access levels:
+**Note:** At least one of `--provider` or `--url` must be specified.
+
+**GitHub Limitation:** The `--access-level` and `--approvals` flags only work with GitLab. GitHub
+environment protection requires team or user IDs for reviewers, which this tool does not currently
+support. For GitHub, environments will be created but protection rules must be configured via the
+GitHub UI or API directly.
+
+Access levels (GitLab only):
 
 - `30` - Developer
 - `40` - Maintainer

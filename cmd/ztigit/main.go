@@ -83,6 +83,7 @@ var (
 	mirrorVerbose       bool
 	mirrorMaxAge        int
 	mirrorSkipPreflight bool
+	mirrorPreferSSH     bool
 )
 
 func init() {
@@ -92,6 +93,7 @@ func init() {
 	mirrorCmd.Flags().BoolVarP(&mirrorVerbose, "verbose", "v", false, "Verbose output")
 	mirrorCmd.Flags().IntVar(&mirrorMaxAge, "max-age", 12, "Skip repos not updated in this many months (0 = no limit)")
 	mirrorCmd.Flags().BoolVar(&mirrorSkipPreflight, "skip-preflight", false, "Skip git credential validation before cloning")
+	mirrorCmd.Flags().BoolVar(&mirrorPreferSSH, "prefer-ssh", false, "Use SSH URLs instead of HTTPS for git operations")
 	rootCmd.AddCommand(mirrorCmd)
 }
 
@@ -173,6 +175,7 @@ func runMirror(cmd *cobra.Command, args []string) error {
 		Verbose:       mirrorVerbose,
 		MaxAgeMonths:  mirrorMaxAge,
 		SkipPreflight: mirrorSkipPreflight,
+		PreferSSH:     mirrorPreferSSH,
 	}
 
 	if opts.BaseDir == "" {

@@ -20,34 +20,53 @@ type PreflightResult struct {
 	Error      error
 }
 
+// credentialMethod represents a git credential method to test
+type credentialMethod struct {
+	name string // "ssh" or "https"
+	url  string
+}
+
 // Preflight checks git credentials before starting clone operations
 // Returns the preferred method (https or ssh) that works, or an error if neither works
 func (m *Mirror) Preflight(ctx context.Context, repos []provider.Repository) (*PreflightResult, error) {
 	if len(repos) == 0 {
+		if m.options.PreferSSH {
+			return &PreflightResult{Method: "ssh"}, nil
+		}
 		return &PreflightResult{Method: "https"}, nil
 	}
 
 	// Use first repo for testing
 	testRepo := repos[0]
 
-	result := &PreflightResult{}
-
-	// Try HTTPS first
-	if testRepo.CloneURL != "" {
-		fmt.Printf("  %s Testing HTTPS credentials...\n", cyan("→"))
-		if m.testCredentials(ctx, testRepo.CloneURL) {
-			result.HTTPSWorks = true
-			result.Method = "https"
-			return result, nil
+	// Build ordered list of methods to test
+	var methods []credentialMethod
+	if m.options.PreferSSH {
+		methods = []credentialMethod{
+			{name: "ssh", url: testRepo.SSHUrl},
+			{name: "https", url: testRepo.CloneURL},
+		}
+	} else {
+		methods = []credentialMethod{
+			{name: "https", url: testRepo.CloneURL},
+			{name: "ssh", url: testRepo.SSHUrl},
 		}
 	}
 
-	// Try SSH
-	if testRepo.SSHUrl != "" {
-		fmt.Printf("  %s Testing SSH credentials...\n", cyan("→"))
-		if m.testCredentials(ctx, testRepo.SSHUrl) {
-			result.SSHWorks = true
-			result.Method = "ssh"
+	// Test each method in order
+	result := &PreflightResult{}
+	for _, method := range methods {
+		if method.url == "" {
+			continue
+		}
+		fmt.Printf("  %s Testing %s credentials...\n", cyan("→"), strings.ToUpper(method.name))
+		if m.testCredentials(ctx, method.url) {
+			result.Method = method.name
+			if method.name == "ssh" {
+				result.SSHWorks = true
+			} else {
+				result.HTTPSWorks = true
+			}
 			return result, nil
 		}
 	}

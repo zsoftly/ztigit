@@ -20,6 +20,11 @@ curl -L https://github.com/zsoftly/ztigit/releases/latest/download/ztigit-linux-
 chmod +x ztigit
 sudo mv ztigit /usr/local/bin/
 
+# macOS (Intel)
+curl -L https://github.com/zsoftly/ztigit/releases/latest/download/ztigit-darwin-amd64 -o ztigit
+chmod +x ztigit
+sudo mv ztigit /usr/local/bin/
+
 # macOS (Apple Silicon)
 curl -L https://github.com/zsoftly/ztigit/releases/latest/download/ztigit-darwin-arm64 -o ztigit
 chmod +x ztigit

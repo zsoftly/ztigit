@@ -69,11 +69,17 @@ ztigit protect --project "zsoftly/ztiaws" --provider github --pattern "prod"
 
 ## Configuration
 
-Tokens can be set via:
+Tokens are loaded from (in order):
 
-- Environment variables: `GITLAB_TOKEN`, `GITHUB_TOKEN`
-- Config file: `~/.config/ztigit/ztigit.yaml`
-- CLI flag: `--token`
+1. **System keychain** (most secure) - macOS Keychain, Linux secret-service, Windows Credential
+   Manager
+2. **Environment variables**: `GITLAB_TOKEN`, `GITHUB_TOKEN`
+3. **Config file**: `~/.config/ztigit/ztigit.yaml`
+
+```bash
+# Save token to keychain
+ztigit auth login -p github   # reads from GITHUB_TOKEN env var or prompts
+```
 
 See [docs/configuration.md](docs/configuration.md) for details.
 

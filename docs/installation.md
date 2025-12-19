@@ -89,6 +89,15 @@ ztigit --help
 Runtime:
 
 - `git` - required for clone/pull operations
+- **Linux only**: `libsecret` for keychain support (optional, falls back to config file)
+
+  ```bash
+  # Debian/Ubuntu
+  sudo apt install libsecret-1-0
+
+  # Fedora/RHEL
+  sudo dnf install libsecret
+  ```
 
 Build:
 

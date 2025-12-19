@@ -13,7 +13,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), using
 - **mirror command**: Clone/update repositories from groups/orgs
   - Auto-detect provider from URL (e.g., `https://github.com/zsoftly`)
   - Clone to `$HOME/<org>/` by default
-  - HTTPS-first, SSH-fallback for git operations
+  - HTTPS-first, SSH-fallback for git operations (or `--prefer-ssh` for SSH-first)
   - Parallel processing (configurable, default: 4)
   - Skip archived repositories
   - Skip stale repos (not updated in N months, default: 12)
@@ -21,6 +21,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), using
   - Organization and user repos (GitHub)
   - Display repo sizes during operations
   - Colored output (git-style)
+  - Smart update: stashes changes, switches to default branch, pulls latest
 - **Preflight credential validation**: Checks git credentials before cloning
   - Tests HTTPS/SSH access with `git ls-remote`
   - Fails fast with actionable fix suggestions

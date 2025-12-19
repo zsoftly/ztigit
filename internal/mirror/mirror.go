@@ -60,6 +60,7 @@ type Options struct {
 	Verbose       bool
 	MaxAgeMonths  int  // Skip repos not updated in this many months (0 = no limit)
 	SkipPreflight bool // Skip credential validation before cloning
+	PreferSSH     bool // Prefer SSH URLs over HTTPS for git operations
 }
 
 // DefaultOptions returns the default mirror options
@@ -225,19 +226,31 @@ func (m *Mirror) mirrorRepo(ctx context.Context, repo provider.Repository) Resul
 		}
 	}
 
-	// Clone the repository - try HTTPS first, fall back to SSH
+	// Clone the repository - order depends on PreferSSH option
 	fmt.Printf("  %s %s%s\n", cyan("↓"), repo.Name, sizeStr)
-	err := m.cloneRepo(ctx, repo.CloneURL, repoDir)
+
+	var primaryURL, fallbackURL string
+	var primaryMethod, fallbackMethod string
+
+	if m.options.PreferSSH {
+		primaryURL, fallbackURL = repo.SSHUrl, repo.CloneURL
+		primaryMethod, fallbackMethod = "SSH", "HTTPS"
+	} else {
+		primaryURL, fallbackURL = repo.CloneURL, repo.SSHUrl
+		primaryMethod, fallbackMethod = "HTTPS", "SSH"
+	}
+
+	err := m.cloneRepo(ctx, primaryURL, repoDir)
 	if err != nil {
-		// Try SSH if HTTPS fails
-		if repo.SSHUrl != "" {
-			fmt.Printf("    %s HTTPS failed, trying SSH...\n", yellow("!"))
-			sshErr := m.cloneRepo(ctx, repo.SSHUrl, repoDir)
-			if sshErr != nil {
+		// Try fallback if primary fails
+		if fallbackURL != "" {
+			fmt.Printf("    %s %s failed, trying %s...\n", yellow("!"), primaryMethod, fallbackMethod)
+			fallbackErr := m.cloneRepo(ctx, fallbackURL, repoDir)
+			if fallbackErr != nil {
 				return Result{
 					Repository: repo,
 					Action:     "failed",
-					Error:      fmt.Errorf("clone failed (HTTPS: %v, SSH: %v)", err, sshErr),
+					Error:      fmt.Errorf("clone failed (%s: %v, %s: %v)", primaryMethod, err, fallbackMethod, fallbackErr),
 				}
 			}
 			return Result{
@@ -297,14 +310,11 @@ func (m *Mirror) updateRepo(ctx context.Context, dir string) error {
 		return fmt.Errorf("git fetch failed: %w", err)
 	}
 
-	// Get current branch
-	branchCmd := exec.CommandContext(ctx, "git", "-C", dir, "rev-parse", "--abbrev-ref", "HEAD")
-	branchOutput, err := branchCmd.Output()
+	// Get the default branch from git
+	branch, err := m.getDefaultBranch(ctx, dir)
 	if err != nil {
-		return fmt.Errorf("failed to get current branch: %w", err)
+		return err
 	}
-
-	branch := strings.TrimSpace(string(branchOutput))
 
 	// Check if there are local changes
 	statusCmd := exec.CommandContext(ctx, "git", "-C", dir, "status", "--porcelain")
@@ -319,6 +329,11 @@ func (m *Mirror) updateRepo(ctx context.Context, dir string) error {
 		stashCmd.Stdout = nil
 		stashCmd.Stderr = nil
 		_ = stashCmd.Run() // Ignore errors, might not have anything to stash
+	}
+
+	// Switch to default branch
+	if err := m.checkoutBranch(ctx, dir, branch); err != nil {
+		return fmt.Errorf("failed to checkout %s: %w", branch, err)
 	}
 
 	// Pull latest changes
@@ -339,6 +354,39 @@ func (m *Mirror) updateRepo(ctx context.Context, dir string) error {
 		if resetErr := resetCmd.Run(); resetErr != nil {
 			return fmt.Errorf("git pull and reset failed: %w", err)
 		}
+	}
+
+	return nil
+}
+
+// getDefaultBranch gets the default branch from git
+func (m *Mirror) getDefaultBranch(ctx context.Context, dir string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "-C", dir, "rev-parse", "--abbrev-ref", "origin/HEAD")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get default branch: %w", err)
+	}
+	// Output is "origin/main" - strip the "origin/" prefix
+	ref := strings.TrimSpace(string(output))
+	return strings.TrimPrefix(ref, "origin/"), nil
+}
+
+// checkoutBranch switches to a branch, creating it from remote if needed
+func (m *Mirror) checkoutBranch(ctx context.Context, dir, branch string) error {
+	// First try simple checkout (branch exists locally)
+	checkoutCmd := exec.CommandContext(ctx, "git", "-C", dir, "checkout", branch)
+	checkoutCmd.Stdout = nil
+	checkoutCmd.Stderr = nil
+	if err := checkoutCmd.Run(); err == nil {
+		return nil
+	}
+
+	// Branch doesn't exist locally, create from remote
+	createCmd := exec.CommandContext(ctx, "git", "-C", dir, "checkout", "-b", branch, "origin/"+branch)
+	createCmd.Stdout = nil
+	createCmd.Stderr = nil
+	if err := createCmd.Run(); err != nil {
+		return fmt.Errorf("branch %s not found locally or on remote", branch)
 	}
 
 	return nil

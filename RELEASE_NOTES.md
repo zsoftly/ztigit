@@ -1,6 +1,4 @@
-# ztigit 0.0.1 Release Notes
-
-**Release Date:** December 18, 2025
+# ztigit Release Notes
 
 ## Overview
 
@@ -15,7 +13,7 @@ Clone/update repos from GitLab groups or GitHub orgs/users:
 
 - Auto-detect provider from URL: `ztigit mirror https://github.com/zsoftly`
 - Default clone location: `$HOME/<org>/`
-- HTTPS-first, SSH-fallback for git operations
+- Auto-detects working git credentials (HTTPS or SSH)
 - Skip stale repos: `--max-age 12` (default, 0 = no limit)
 - Parallel processing (default: 4, configurable)
 - Colored output with repo sizes
@@ -57,15 +55,15 @@ Checks git credentials before starting clone operations:
 
 ```bash
 # Linux (amd64)
-curl -L https://github.com/zsoftly/ztigit/releases/download/0.0.1/ztigit-linux-amd64 -o ztigit
+curl -L https://github.com/zsoftly/ztigit/releases/latest/download/ztigit-linux-amd64 -o ztigit
 chmod +x ztigit && sudo mv ztigit /usr/local/bin/
 
 # macOS (Apple Silicon)
-curl -L https://github.com/zsoftly/ztigit/releases/download/0.0.1/ztigit-darwin-arm64 -o ztigit
+curl -L https://github.com/zsoftly/ztigit/releases/latest/download/ztigit-darwin-arm64 -o ztigit
 chmod +x ztigit && sudo mv ztigit /usr/local/bin/
 
 # macOS (Intel)
-curl -L https://github.com/zsoftly/ztigit/releases/download/0.0.1/ztigit-darwin-amd64 -o ztigit
+curl -L https://github.com/zsoftly/ztigit/releases/latest/download/ztigit-darwin-amd64 -o ztigit
 chmod +x ztigit && sudo mv ztigit /usr/local/bin/
 ```
 
@@ -82,4 +80,4 @@ ztigit mirror https://github.com/zsoftly
 ztigit auth login -p github
 ```
 
-**Full Changelog**: https://github.com/zsoftly/ztigit/commits/0.0.1
+**Full Changelog**: https://github.com/zsoftly/ztigit/releases

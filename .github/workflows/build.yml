@@ -1,0 +1,274 @@
+name: CI/CD Pipeline
+
+# Git Flow Pattern:
+# 1. Create release branch from main (e.g., release/v1.0.0)
+# 2. Make release preparations (version updates, changelog, etc.)
+# 3. Push tag to trigger release workflow (e.g., v1.0.0)
+# 4. Workflow builds, tests, and creates GitHub release
+# 5. Merge release branch back to main when ready
+
+on:
+  push:
+    branches: [main, 'feature/*', 'feat/*', 'issue/*', 'release/*']
+    tags:
+      - '[0-9]*'
+    paths:
+      - 'cmd/**'
+      - 'internal/**'
+      - 'pkg/**'
+      - '.github/workflows/build.yml'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+  pull_request:
+    branches: [main, 'release/*']
+    paths:
+      - 'cmd/**'
+      - 'internal/**'
+      - 'pkg/**'
+      - '.github/workflows/build.yml'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    if:
+      github.event_name == 'pull_request' || (github.event_name == 'push' && !startsWith(github.ref,
+      'refs/tags/'))
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Check formatting
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            git config core.autocrlf false
+            git checkout HEAD -- .
+          fi
+
+          UNFORMATTED=$(gofmt -s -l .)
+          if [ -n "$UNFORMATTED" ]; then
+            echo "The following files are not formatted correctly:"
+            echo "$UNFORMATTED"
+            echo ""
+            echo "Please run 'gofmt -s -w .' to fix formatting issues."
+            exit 1
+          fi
+          echo "All Go files are properly formatted."
+
+      - name: Test build
+        run: go build -o ztigit${{ matrix.os == 'windows-latest' && '.exe' || '' }} ./cmd/ztigit
+
+      - name: Test CLI commands
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            ZTIGIT_EXE="./ztigit.exe"
+          else
+            ZTIGIT_EXE="./ztigit"
+          fi
+
+          # Test help commands
+          $ZTIGIT_EXE --help
+          $ZTIGIT_EXE mirror --help
+          $ZTIGIT_EXE protect --help
+          $ZTIGIT_EXE auth --help
+          $ZTIGIT_EXE config --help
+
+          # Test version
+          $ZTIGIT_EXE --version
+
+  security:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Install security tools
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.61.0
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '0'
+        continue-on-error: true
+
+      - name: Run golangci-lint with security checks
+        run: |
+          $(go env GOPATH)/bin/golangci-lint run --enable gosec || true
+        continue-on-error: true
+
+      - name: Run Go vulnerability check
+        run: |
+          govulncheck ./... || true
+        continue-on-error: true
+
+      - name: Run go vet
+        run: go vet ./...
+
+  build:
+    name: Cross-Platform Build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: windows
+            goarch: arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          GIT_COMMIT=${GITHUB_SHA::8}
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            VERSION="dev-${GIT_COMMIT}"
+          fi
+
+          echo "Building version: ${VERSION}"
+
+          BINARY_NAME="ztigit-${{ matrix.goos }}-${{ matrix.goarch }}"
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            BINARY_NAME="${BINARY_NAME}.exe"
+          fi
+
+          go build \
+            -ldflags "-X main.version=${VERSION} -s -w" \
+            -o "${BINARY_NAME}" \
+            ./cmd/ztigit
+
+          # Verify binary on linux-amd64
+          if [ "${{ matrix.goos }}" = "linux" ] && [ "${{ matrix.goarch }}" = "amd64" ]; then
+            ./"${BINARY_NAME}" --version
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ztigit-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ztigit-${{ matrix.goos }}-${{ matrix.goarch }}*
+          retention-days: 30
+
+  release:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Prepare release binaries
+        run: |
+          mkdir -p release/
+
+          for dir in artifacts/*/; do
+            platform=$(basename "$dir")
+            cd "$dir"
+
+            # Copy binary directly
+            cp ./* "../../release/"
+
+            # Create archives
+            if [[ "$platform" == *"windows"* ]]; then
+              zip -r "../../release/${platform}.zip" ./*
+            else
+              tar -czf "../../release/${platform}.tar.gz" ./*
+            fi
+
+            cd - > /dev/null
+          done
+
+          echo "Release binaries:"
+          ls -la release/
+
+      - name: Generate checksums
+        run: |
+          cd release
+          sha256sum * > checksums.txt
+          cat checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          body_path: RELEASE_NOTES.txt
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

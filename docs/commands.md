@@ -1,0 +1,225 @@
+# Commands Reference
+
+## auth
+
+Manage authentication tokens.
+
+### auth login
+
+Save authentication token for a provider.
+
+```bash
+ztigit auth login --provider <gitlab|github> --token <token> [--url <base_url>]
+```
+
+| Flag               | Required | Description                         |
+| ------------------ | -------- | ----------------------------------- |
+| `--provider`, `-p` | Yes      | Provider: `gitlab` or `github`      |
+| `--token`, `-t`    | Yes      | Personal access token               |
+| `--url`, `-u`      | No       | Base URL (default: public instance) |
+
+Examples:
+
+```bash
+# GitLab.com
+ztigit auth login -p gitlab -t glpat-xxxx
+
+# GitLab self-hosted
+ztigit auth login -p gitlab -t glpat-xxxx -u https://gitlab.company.com
+
+# GitHub
+ztigit auth login -p github -t ghp_xxxx
+```
+
+---
+
+## config
+
+Show current configuration.
+
+```bash
+ztigit config
+```
+
+Displays:
+
+- Config file location
+- GitLab URL and token (masked)
+- GitHub URL and token (masked)
+- Mirror settings
+
+---
+
+## mirror
+
+Clone or update repositories from groups/organizations.
+
+```bash
+ztigit mirror <url-or-org> [options]
+```
+
+| Flag               | Required | Description                                                    |
+| ------------------ | -------- | -------------------------------------------------------------- |
+| `<url-or-org>`     | Yes      | URL or org/group name (positional)                             |
+| `--provider`, `-p` | No       | Provider (required if not using URL)                           |
+| `--dir`, `-d`      | No       | Base directory (default: `$HOME/<org>`)                        |
+| `--max-age`        | No       | Skip repos not updated in N months (default: 12, 0 = no limit) |
+| `--parallel`       | No       | Parallel operations (default: 4)                               |
+| `--verbose`, `-v`  | No       | Verbose output                                                 |
+
+**Authentication:**
+
+- API: Set `GITHUB_TOKEN` or `GITLAB_TOKEN` environment variable
+- Git: Uses your existing git credentials (HTTPS credential helper or SSH keys)
+- Clone attempts HTTPS first, falls back to SSH if HTTPS fails
+
+**GitLab**: Groups including subgroups are supported.
+
+**GitHub**: Both organizations and user accounts are supported.
+
+Examples:
+
+```bash
+# Auto-detect from URL
+ztigit mirror https://github.com/zsoftly
+ztigit mirror https://gitlab.com/devops
+
+# Specify provider manually
+ztigit mirror zsoftly --provider github
+
+# Include older repos (default skips repos not updated in 12 months)
+ztigit mirror zsoftly -p github --max-age 24
+
+# No age limit (clone all repos)
+ztigit mirror zsoftly -p github --max-age 0
+
+# Custom directory, verbose
+ztigit mirror https://github.com/zsoftly -d ~/projects -v
+```
+
+Output:
+
+```
+Connecting to https://github.com...
+Authenticated as: ditahk
+
+Mirroring zsoftly to /home/ditahk/zsoftly...
+
+[OK] Cloned: ztigit (1.2s)
+[OK] Updated: ztiaws (0.8s)
+[SKIP] Archived: old-repo
+[SKIP] Stale: legacy-tool (last updated: 2023-01-15)
+
+Summary:
+  Cloned:  1
+  Updated: 1
+  Skipped: 1 (archived)
+  Stale:   1 (not updated recently)
+  Failed:  0
+  Total:   4
+```
+
+---
+
+## environments
+
+List deployment environments for a project.
+
+```bash
+ztigit environments --project <path> [options]
+```
+
+| Flag               | Required | Description                       |
+| ------------------ | -------- | --------------------------------- |
+| `--project`, `-P`  | Yes      | Project path (e.g., `group/repo`) |
+| `--provider`, `-p` | No       | Provider (auto-detected)          |
+| `--url`, `-u`      | No       | Base URL                          |
+
+Examples:
+
+```bash
+# GitLab project
+ztigit environments -P "devops/deploy-tools"
+
+# GitHub repo
+ztigit environments -P "zsoftly/ztiaws" -p github
+```
+
+Output:
+
+```
+Environments:
+
+  dev                                      [unprotected] available
+  staging                                  [protected] available
+  production                               [protected] available
+
+Total: 3 environments
+```
+
+---
+
+## protect
+
+Protect environments matching a pattern.
+
+```bash
+ztigit protect --project <path> --pattern <pattern> [options]
+```
+
+| Flag               | Required | Description                                |
+| ------------------ | -------- | ------------------------------------------ |
+| `--project`, `-P`  | Yes      | Project path                               |
+| `--pattern`        | Yes      | Environment name pattern (prefix or `all`) |
+| `--provider`, `-p` | No       | Provider                                   |
+| `--url`, `-u`      | No       | Base URL                                   |
+| `--dry-run`        | No       | Show what would be protected               |
+| `--access-level`   | No       | Required access level (default: 30)        |
+| `--approvals`      | No       | Required approvals (default: 1)            |
+
+Access levels:
+
+- `30` - Developer
+- `40` - Maintainer
+- `60` - Admin
+
+Examples:
+
+```bash
+# Protect all environments starting with "prod"
+ztigit protect -P "devops/deploy-tools" --pattern "prod"
+
+# Protect all environments
+ztigit protect -P "zsoftly/ztiaws" -p github --pattern "all"
+
+# Dry run
+ztigit protect -P "devops/deploy-tools" --pattern "dev" --dry-run
+
+# Require maintainer access
+ztigit protect -P "devops/deploy-tools" --pattern "prod" --access-level 40
+```
+
+Output:
+
+```
+[OK] Protected: prod-us-east-1
+[OK] Protected: prod-eu-west-1
+[SKIP] Already protected: prod-main
+
+Summary:
+  Protected: 2
+  Skipped:   1 (already protected)
+  Failed:    0
+  Total:     3
+```
+
+---
+
+## Global Flags
+
+Available on all commands:
+
+| Flag              | Description  |
+| ----------------- | ------------ |
+| `--help`, `-h`    | Show help    |
+| `--version`, `-v` | Show version |

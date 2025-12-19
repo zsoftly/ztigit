@@ -8,28 +8,37 @@ Manage authentication tokens.
 
 Save authentication token for a provider.
 
+Token is read from environment variable or stdin (never command line for security).
+
 ```bash
-ztigit auth login --provider <gitlab|github> --token <token> [--url <base_url>]
+ztigit auth login --provider <gitlab|github> [--url <base_url>]
 ```
 
 | Flag               | Required | Description                         |
 | ------------------ | -------- | ----------------------------------- |
 | `--provider`, `-p` | Yes      | Provider: `gitlab` or `github`      |
-| `--token`, `-t`    | Yes      | Personal access token               |
 | `--url`, `-u`      | No       | Base URL (default: public instance) |
 
 Examples:
 
 ```bash
-# GitLab.com
-ztigit auth login -p gitlab -t glpat-xxxx
+# Using environment variable (recommended)
+export GITLAB_TOKEN=glpat-xxxx
+ztigit auth login -p gitlab
 
-# GitLab self-hosted
-ztigit auth login -p gitlab -t glpat-xxxx -u https://gitlab.company.com
+# Using stdin (pipe)
+echo $GITHUB_TOKEN | ztigit auth login -p github
 
-# GitHub
-ztigit auth login -p github -t ghp_xxxx
+# Interactive prompt
+ztigit auth login -p gitlab
+
+# Self-hosted GitLab
+export GITLAB_TOKEN=glpat-xxxx
+ztigit auth login -p gitlab -u https://gitlab.company.com
 ```
+
+**Security:** Tokens are stored in the system keychain (macOS Keychain, Linux secret-service,
+Windows Credential Manager) when available, otherwise in config file with restricted permissions.
 
 ---
 
@@ -65,6 +74,7 @@ ztigit mirror <url-or-org> [options]
 | `--dir`, `-d`      | No       | Base directory (default: `$HOME/<org>`)                        |
 | `--max-age`        | No       | Skip repos not updated in N months (default: 12, 0 = no limit) |
 | `--parallel`       | No       | Parallel operations (default: 4)                               |
+| `--skip-preflight` | No       | Skip git credential validation before cloning                  |
 | `--verbose`, `-v`  | No       | Verbose output                                                 |
 
 **Authentication:**

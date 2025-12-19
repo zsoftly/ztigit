@@ -7,6 +7,12 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/viper"
+	"github.com/zalando/go-keyring"
+)
+
+const (
+	// KeyringService is the service name used for keychain storage
+	KeyringService = "ztigit"
 )
 
 // Config holds the application configuration
@@ -119,24 +125,46 @@ func GetConfigFile() string {
 }
 
 // Save saves the configuration to file
+// Tokens are stored in system keychain when available, otherwise in config file
 func Save(cfg *Config) error {
 	configDir := GetConfigDir()
 
-	// Create config directory if it doesn't exist
-	if err := os.MkdirAll(configDir, 0755); err != nil {
+	// Create config directory if it doesn't exist (0700 for security)
+	if err := os.MkdirAll(configDir, 0700); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	// Set values in viper
+	// Try to store tokens in keychain (secure storage)
+	keyringWorked := false
+	if cfg.GitLab.Token != "" {
+		if err := SetTokenSecure("gitlab", cfg.GitLab.Token); err == nil && keyringAvailable {
+			keyringWorked = true
+		}
+	}
+	if cfg.GitHub.Token != "" {
+		if err := SetTokenSecure("github", cfg.GitHub.Token); err == nil && keyringAvailable {
+			keyringWorked = true
+		}
+	}
+
+	// Set values in viper (tokens only if keychain not available)
 	viper.Set("default_provider", cfg.DefaultProvider)
-	viper.Set("gitlab.token", cfg.GitLab.Token)
 	viper.Set("gitlab.base_url", cfg.GitLab.BaseURL)
-	viper.Set("github.token", cfg.GitHub.Token)
 	viper.Set("github.base_url", cfg.GitHub.BaseURL)
 	viper.Set("mirror.base_dir", cfg.Mirror.BaseDir)
 	viper.Set("mirror.parallel", cfg.Mirror.Parallel)
 	viper.Set("mirror.skip_archived", cfg.Mirror.SkipArchived)
 	viper.Set("debug", cfg.Debug)
+
+	// Only store tokens in config file if keychain is not available
+	if !keyringWorked {
+		viper.Set("gitlab.token", cfg.GitLab.Token)
+		viper.Set("github.token", cfg.GitHub.Token)
+	} else {
+		// Clear tokens from config file if using keychain
+		viper.Set("gitlab.token", "")
+		viper.Set("github.token", "")
+	}
 
 	// Write config file
 	configFile := GetConfigFile()
@@ -144,7 +172,7 @@ func Save(cfg *Config) error {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
-	// Set restrictive permissions on config file (contains tokens)
+	// Set restrictive permissions on config file
 	if err := os.Chmod(configFile, 0600); err != nil {
 		return fmt.Errorf("failed to set config file permissions: %w", err)
 	}
@@ -153,7 +181,14 @@ func Save(cfg *Config) error {
 }
 
 // GetToken returns the token for the specified provider
+// Checks keychain first, then falls back to config file/env vars
 func (c *Config) GetToken(provider string) string {
+	// Try keychain first (most secure)
+	if token := GetTokenSecure(provider); token != "" {
+		return token
+	}
+
+	// Fall back to config file / environment variable
 	switch provider {
 	case "gitlab":
 		return c.GitLab.Token
@@ -174,4 +209,64 @@ func (c *Config) GetBaseURL(provider string) string {
 	default:
 		return ""
 	}
+}
+
+// keyringAvailable checks if the system keyring is available
+var keyringAvailable = true
+
+// SetTokenSecure stores a token securely in the system keychain
+// Falls back to config file if keychain is unavailable
+func SetTokenSecure(provider, token string) error {
+	if !keyringAvailable {
+		return nil // Will use config file fallback
+	}
+
+	key := fmt.Sprintf("%s-token", provider)
+	err := keyring.Set(KeyringService, key, token)
+	if err != nil {
+		// Keyring not available (e.g., headless server), mark as unavailable
+		keyringAvailable = false
+		return nil // Fall back to config file storage
+	}
+	return nil
+}
+
+// GetTokenSecure retrieves a token from the system keychain
+// Returns empty string if not found or keychain unavailable
+func GetTokenSecure(provider string) string {
+	if !keyringAvailable {
+		return ""
+	}
+
+	key := fmt.Sprintf("%s-token", provider)
+	token, err := keyring.Get(KeyringService, key)
+	if err != nil {
+		// Keyring not available or token not found
+		if err == keyring.ErrNotFound {
+			return ""
+		}
+		// Mark keyring as unavailable for future calls
+		keyringAvailable = false
+		return ""
+	}
+	return token
+}
+
+// DeleteTokenSecure removes a token from the system keychain
+func DeleteTokenSecure(provider string) error {
+	if !keyringAvailable {
+		return nil
+	}
+
+	key := fmt.Sprintf("%s-token", provider)
+	err := keyring.Delete(KeyringService, key)
+	if err != nil && err != keyring.ErrNotFound {
+		return err
+	}
+	return nil
+}
+
+// IsKeyringAvailable returns whether the system keyring is available
+func IsKeyringAvailable() bool {
+	return keyringAvailable
 }

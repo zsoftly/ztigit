@@ -1,10 +1,21 @@
 # Configuration
 
+## Token Storage (Security)
+
+Tokens are stored securely using the system keychain when available:
+
+- **macOS**: Keychain Access
+- **Linux**: secret-service (GNOME Keyring, KWallet)
+- **Windows**: Credential Manager
+
+If keychain is unavailable (e.g., headless servers), tokens fall back to config file with `0600`
+permissions.
+
 ## Token Priority
 
 Tokens are loaded in order (first found wins):
 
-1. CLI flag (`--token`)
+1. System keychain (most secure)
 2. Environment variable (`GITLAB_TOKEN`, `GITHUB_TOKEN`)
 3. Config file (`~/.config/ztigit/ztigit.yaml`)
 
@@ -25,12 +36,12 @@ Location: `~/.config/ztigit/ztigit.yaml`
 default_provider: gitlab
 
 gitlab:
-  token: glpat-xxxxxxxxxxxx
   base_url: https://gitlab.com
+  # token stored in system keychain (not in file)
 
 github:
-  token: ghp_xxxxxxxxxxxx
   base_url: https://github.com
+  # token stored in system keychain (not in file)
 
 mirror:
   base_dir: ~/git-repos
@@ -43,14 +54,22 @@ debug: false
 ### Create Config via CLI
 
 ```bash
-# GitLab
-ztigit auth login --provider gitlab --token glpat-xxxx --url https://gitlab.example.com
+# GitLab (token read from GITLAB_TOKEN env var or stdin)
+export GITLAB_TOKEN=glpat-xxxx
+ztigit auth login -p gitlab
+
+# GitLab self-hosted
+ztigit auth login -p gitlab -u https://gitlab.example.com
 
 # GitHub
-ztigit auth login --provider github --token ghp_xxxx
+export GITHUB_TOKEN=ghp_xxxx
+ztigit auth login -p github
+
+# Interactive (will prompt for token)
+ztigit auth login -p gitlab
 ```
 
-Config file is created with `0600` permissions (owner read/write only).
+Config directory is created with `0700` permissions, config file with `0600` (owner access only).
 
 ## Token Scopes
 
@@ -85,10 +104,12 @@ When `--provider` is not specified:
 
 ```bash
 # GitLab self-hosted
-ztigit auth login --provider gitlab --token glpat-xxxx --url https://gitlab.company.com
+export GITLAB_TOKEN=glpat-xxxx
+ztigit auth login -p gitlab -u https://gitlab.company.com
 
 # GitHub Enterprise
-ztigit auth login --provider github --token ghp_xxxx --url https://github.company.com
+export GITHUB_TOKEN=ghp_xxxx
+ztigit auth login -p github -u https://github.company.com
 ```
 
 ## View Current Config

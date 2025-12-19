@@ -2,6 +2,7 @@ package mirror
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os/exec"
@@ -85,7 +86,7 @@ func (m *Mirror) Preflight(ctx context.Context, repos []provider.Repository) (*P
 		testRepo.CloneURL,
 	)
 
-	return nil, fmt.Errorf(errMsg)
+	return nil, errors.New(errMsg)
 }
 
 // testCredentials tests if git can access a URL using ls-remote

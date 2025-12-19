@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"net/url"
@@ -129,6 +130,11 @@ func runMirror(cmd *cobra.Command, args []string) error {
 
 	// Get token from environment or config (optional for public repos)
 	token := cfg.GetToken(string(providerType))
+
+	// Security: reject HTTP URLs when token is present
+	if err := validateURLSecurity(baseURL, token); err != nil {
+		return err
+	}
 
 	// Create provider
 	var p provider.Provider
@@ -409,22 +415,32 @@ var authCmd = &cobra.Command{
 var authLoginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Configure authentication token",
-	Long:  `Save an authentication token for a provider.`,
-	RunE:  runAuthLogin,
+	Long: `Save an authentication token for a provider.
+
+Token is read from environment variable or stdin (never command line for security).
+
+Examples:
+  # Using environment variable (recommended)
+  export GITHUB_TOKEN=ghp_xxxx
+  ztigit auth login -p github
+
+  # Using stdin
+  echo $GITHUB_TOKEN | ztigit auth login -p github
+
+  # Interactive (paste token, press Enter)
+  ztigit auth login -p gitlab`,
+	RunE: runAuthLogin,
 }
 
 var (
 	authLoginProvider string
-	authLoginToken    string
 	authLoginURL      string
 )
 
 func init() {
 	authLoginCmd.Flags().StringVarP(&authLoginProvider, "provider", "p", "", "Provider type: gitlab or github")
-	authLoginCmd.Flags().StringVarP(&authLoginToken, "token", "t", "", "Authentication token")
 	authLoginCmd.Flags().StringVarP(&authLoginURL, "url", "u", "", "Base URL for the provider")
 	authLoginCmd.MarkFlagRequired("provider")
-	authLoginCmd.MarkFlagRequired("token")
 
 	authCmd.AddCommand(authLoginCmd)
 	rootCmd.AddCommand(authCmd)
@@ -449,15 +465,27 @@ func runAuthLogin(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Get token from environment variable or stdin (never from command line flag)
+	token := getTokenFromEnvOrStdin(providerType)
+	if token == "" {
+		return fmt.Errorf("no token provided. Set %s_TOKEN environment variable or pipe token via stdin",
+			strings.ToUpper(string(providerType)))
+	}
+
+	// Security: reject HTTP URLs when token is present
+	if err := validateURLSecurity(baseURL, token); err != nil {
+		return err
+	}
+
 	// Test the token
 	var p provider.Provider
 	var err error
 
 	switch providerType {
 	case provider.ProviderGitLab:
-		p, err = provider.NewGitLabProvider(authLoginToken, baseURL)
+		p, err = provider.NewGitLabProvider(token, baseURL)
 	case provider.ProviderGitHub:
-		p, err = provider.NewGitHubProvider(authLoginToken, baseURL)
+		p, err = provider.NewGitHubProvider(token, baseURL)
 	}
 
 	if err != nil {
@@ -475,10 +503,10 @@ func runAuthLogin(cmd *cobra.Command, args []string) error {
 	// Save to config
 	switch providerType {
 	case provider.ProviderGitLab:
-		cfg.GitLab.Token = authLoginToken
+		cfg.GitLab.Token = token
 		cfg.GitLab.BaseURL = baseURL
 	case provider.ProviderGitHub:
-		cfg.GitHub.Token = authLoginToken
+		cfg.GitHub.Token = token
 		cfg.GitHub.BaseURL = baseURL
 	}
 
@@ -486,8 +514,58 @@ func runAuthLogin(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 
-	fmt.Printf("\n[OK] Token saved to %s\n", config.GetConfigFile())
+	if config.IsKeyringAvailable() {
+		fmt.Printf("\n%s Token stored in system keychain (secure)\n", green("✓"))
+	} else {
+		fmt.Printf("\n%s Token saved to %s\n", green("✓"), config.GetConfigFile())
+		fmt.Printf("  %s Consider using a system with keychain support for better security\n", yellow("!"))
+	}
 	return nil
+}
+
+// validateURLSecurity checks that HTTPS is used when token is present
+func validateURLSecurity(baseURL, token string) error {
+	if token != "" && strings.HasPrefix(strings.ToLower(baseURL), "http://") {
+		return fmt.Errorf("refusing to use HTTP with authentication token (would expose token in plaintext). Use HTTPS instead")
+	}
+	return nil
+}
+
+// getTokenFromEnvOrStdin reads token from environment variable or stdin
+func getTokenFromEnvOrStdin(providerType provider.ProviderType) string {
+	// Try environment variable first
+	var envVars []string
+	switch providerType {
+	case provider.ProviderGitLab:
+		envVars = []string{"GITLAB_TOKEN", "ZTIGIT_GITLAB_TOKEN"}
+	case provider.ProviderGitHub:
+		envVars = []string{"GITHUB_TOKEN", "ZTIGIT_GITHUB_TOKEN"}
+	}
+
+	for _, env := range envVars {
+		if token := os.Getenv(env); token != "" {
+			return token
+		}
+	}
+
+	// Check if stdin has data (piped input)
+	stat, _ := os.Stdin.Stat()
+	if (stat.Mode() & os.ModeCharDevice) == 0 {
+		// Data is being piped
+		scanner := bufio.NewScanner(os.Stdin)
+		if scanner.Scan() {
+			return strings.TrimSpace(scanner.Text())
+		}
+	}
+
+	// Interactive: prompt for token
+	fmt.Print("Enter token: ")
+	scanner := bufio.NewScanner(os.Stdin)
+	if scanner.Scan() {
+		return strings.TrimSpace(scanner.Text())
+	}
+
+	return ""
 }
 
 // Config command
@@ -508,7 +586,7 @@ func runConfig(cmd *cobra.Command, args []string) error {
 	fmt.Println("GitLab:")
 	fmt.Printf("  URL:   %s\n", cfg.GitLab.BaseURL)
 	if cfg.GitLab.Token != "" {
-		fmt.Printf("  Token: %s...%s\n", cfg.GitLab.Token[:4], cfg.GitLab.Token[len(cfg.GitLab.Token)-4:])
+		fmt.Printf("  Token: %s\n", green("***configured***"))
 	} else {
 		fmt.Println("  Token: (not set)")
 	}
@@ -517,7 +595,7 @@ func runConfig(cmd *cobra.Command, args []string) error {
 	fmt.Println("GitHub:")
 	fmt.Printf("  URL:   %s\n", cfg.GitHub.BaseURL)
 	if cfg.GitHub.Token != "" {
-		fmt.Printf("  Token: %s...%s\n", cfg.GitHub.Token[:4], cfg.GitHub.Token[len(cfg.GitHub.Token)-4:])
+		fmt.Printf("  Token: %s\n", green("***configured***"))
 	} else {
 		fmt.Println("  Token: (not set)")
 	}

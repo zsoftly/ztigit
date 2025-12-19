@@ -30,7 +30,7 @@ type credentialMethod struct {
 // Returns the preferred method (https or ssh) that works, or an error if neither works
 func (m *Mirror) Preflight(ctx context.Context, repos []provider.Repository) (*PreflightResult, error) {
 	if len(repos) == 0 {
-		if m.options.PreferSSH {
+		if m.options.SSH {
 			return &PreflightResult{Method: "ssh"}, nil
 		}
 		return &PreflightResult{Method: "https"}, nil
@@ -41,7 +41,7 @@ func (m *Mirror) Preflight(ctx context.Context, repos []provider.Repository) (*P
 
 	// Build ordered list of methods to test
 	var methods []credentialMethod
-	if m.options.PreferSSH {
+	if m.options.SSH {
 		methods = []credentialMethod{
 			{name: "ssh", url: testRepo.SSHUrl},
 			{name: "https", url: testRepo.CloneURL},

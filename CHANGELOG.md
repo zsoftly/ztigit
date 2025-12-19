@@ -5,6 +5,23 @@ All notable changes to ztigit will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), using
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.2] - 2025-12-19
+
+### Changed
+
+- **Auto-detect git credentials**: Preflight automatically switches to SSH if HTTPS is unavailable
+- **Renamed `--prefer-ssh` to `--ssh`**: Simpler flag name to skip HTTPS test and use SSH directly
+
+### Fixed
+
+- **Installation docs**: Added macOS Intel (darwin-amd64) to download instructions
+- **Clarified docs**: Updated authentication documentation to accurately describe auto-detection
+  behavior
+
+**Full Changelog**: https://github.com/zsoftly/ztigit/compare/0.0.1...0.0.2
+
+---
+
 ## [0.0.1] - 2025-12-18
 
 ### Added
@@ -13,7 +30,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), using
 - **mirror command**: Clone/update repositories from groups/orgs
   - Auto-detect provider from URL (e.g., `https://github.com/zsoftly`)
   - Clone to `$HOME/<org>/` by default
-  - HTTPS-first, SSH-fallback for git operations (or `--prefer-ssh` for SSH-first)
+  - Auto-detects working git credentials (HTTPS or SSH), or use `--ssh` to force SSH
   - Parallel processing (configurable, default: 4)
   - Skip archived repositories
   - Skip stale repos (not updated in N months, default: 12)

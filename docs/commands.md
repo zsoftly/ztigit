@@ -74,7 +74,7 @@ ztigit mirror <url-or-org> [options]
 | `--dir`, `-d`      | No       | Base directory (default: `$HOME/<org>`)                        |
 | `--max-age`        | No       | Skip repos not updated in N months (default: 12, 0 = no limit) |
 | `--parallel`       | No       | Parallel operations (default: 4)                               |
-| `--prefer-ssh`     | No       | Use SSH URLs instead of HTTPS for git operations               |
+| `--ssh`            | No       | Use SSH URLs instead of HTTPS for git operations               |
 | `--skip-preflight` | No       | Skip git credential validation before cloning                  |
 | `--verbose`, `-v`  | No       | Verbose output                                                 |
 
@@ -82,8 +82,8 @@ ztigit mirror <url-or-org> [options]
 
 - API: Set `GITHUB_TOKEN` or `GITLAB_TOKEN` environment variable
 - Git: Uses your existing git credentials (HTTPS credential helper or SSH keys)
-- Default: HTTPS first, falls back to SSH if HTTPS fails
-- Use `--prefer-ssh` to try SSH first (recommended if you have SSH keys configured)
+- Default: Auto-detects working method (tests HTTPS first, falls back to SSH)
+- Use `--ssh` to skip HTTPS test and use SSH directly
 
 **GitLab**: Groups including subgroups are supported.
 
@@ -109,7 +109,7 @@ ztigit mirror zsoftly -p github --max-age 0
 ztigit mirror https://github.com/zsoftly -d ~/projects -v
 
 # Use SSH instead of HTTPS
-ztigit mirror https://github.com/zsoftly --prefer-ssh
+ztigit mirror https://github.com/zsoftly --ssh
 ```
 
 Output:

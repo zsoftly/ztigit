@@ -2,7 +2,8 @@
 # Cross-platform build targets for GitLab/GitHub CLI tool
 
 BINARY_NAME=ztigit
-VERSION?=0.0.1
+# Auto-detect version from git tags (e.g., "0.0.2" or "0.0.2-3-g1a2b3c4" for dev builds)
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_DIR=bin
 CMD_DIR=cmd/ztigit
 

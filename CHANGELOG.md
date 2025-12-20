@@ -5,6 +5,37 @@ All notable changes to ztigit will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), using
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.3] - 2025-12-20
+
+### Added
+
+- **One-liner installers**: Install with single command
+  - Windows: `irm https://github.com/zsoftly/ztigit/releases/latest/download/install.ps1 | iex`
+  - Unix: `curl -fsSL https://github.com/zsoftly/ztigit/releases/latest/download/install.sh | bash`
+- **Windows arm64 support**: Added binary for ARM-based Windows devices
+- **Platform examples**: Separate example files for Unix and Windows
+  - `examples/unix.md` - macOS, Linux, WSL examples
+  - `examples/windows.md` - PowerShell, Command Prompt examples
+- **Script linting CI**: Shellcheck and PSScriptAnalyzer run on every push
+
+### Changed
+
+- **Efficient CI pipeline**: Path-based job triggering
+  - Go code changes → test + security jobs only
+  - Script changes → lint-scripts job only
+  - Docs/examples changes → no CI (skipped)
+- **Simplified README**: Concise, references examples folder
+
+### Fixed
+
+- **install.sh**: Quote `$TMP_FILE` in trap for paths with spaces
+- **install.ps1**: Reject 32-bit Windows (not supported)
+- **Security docs**: Recommend keychain over plain text token files
+
+**Full Changelog**: https://github.com/zsoftly/ztigit/compare/0.0.2...0.0.3
+
+---
+
 ## [0.0.2] - 2025-12-19
 
 ### Changed

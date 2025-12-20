@@ -1,6 +1,22 @@
 # Installation
 
-## Binary Download
+## Quick Install (Recommended)
+
+### Windows (PowerShell)
+
+```powershell
+irm https://github.com/zsoftly/ztigit/releases/latest/download/install.ps1 | iex
+```
+
+### macOS, Linux, WSL
+
+```bash
+curl -fsSL https://github.com/zsoftly/ztigit/releases/latest/download/install.sh | bash
+```
+
+## Manual Installation
+
+### Binary Download
 
 Pre-built binaries available for:
 
@@ -36,16 +52,18 @@ sudo mv ztigit /usr/local/bin/
 ztigit --version
 ```
 
-### Windows
+### Windows (Manual)
 
 ```powershell
 # Download
 Invoke-WebRequest -Uri https://github.com/zsoftly/ztigit/releases/latest/download/ztigit-windows-amd64.exe -OutFile ztigit.exe
 
-# Add to PATH or move to a directory in PATH
-Move-Item ztigit.exe C:\Windows\System32\
+# Create Tools directory and add to PATH
+New-Item -ItemType Directory -Force "$env:USERPROFILE\Tools" | Out-Null
+Move-Item ztigit.exe "$env:USERPROFILE\Tools\ztigit.exe"
+[Environment]::SetEnvironmentVariable("PATH", "$env:PATH;$env:USERPROFILE\Tools", "User")
 
-# Verify
+# Restart terminal, then verify
 ztigit --version
 ```
 

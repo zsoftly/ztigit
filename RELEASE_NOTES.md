@@ -1,83 +1,129 @@
-# ztigit Release Notes
+# ztigit v0.0.3 Release Notes
 
-## Overview
+## What's New
 
-ztigit is a cross-platform CLI for GitLab and GitHub. Mirror repositories, protect environments,
-manage authentication - with security best practices built in.
+### One-Liner Installation
+
+Install ztigit with a single command - no manual downloads or PATH configuration needed.
+
+**Windows (PowerShell):**
+```powershell
+irm https://github.com/zsoftly/ztigit/releases/latest/download/install.ps1 | iex
+```
+
+**macOS, Linux, WSL:**
+```bash
+curl -fsSL https://github.com/zsoftly/ztigit/releases/latest/download/install.sh | bash
+```
+
+### SSH Support
+
+New `--ssh` flag to prefer SSH URLs over HTTPS:
+```bash
+ztigit mirror zsoftly --provider github --ssh
+```
+
+### Windows arm64 Support
+
+Added Windows ARM64 binary for Surface Pro X and other ARM-based Windows devices.
+
+---
 
 ## Features
 
 ### Mirror Command
 
-Clone/update repos from GitLab groups or GitHub orgs/users:
+Clone/update repos from GitLab groups or GitHub orgs:
 
-- Auto-detect provider from URL: `ztigit mirror https://github.com/zsoftly`
-- Default clone location: `$HOME/<org>/`
-- Auto-detects working git credentials (HTTPS or SSH)
-- Skip stale repos: `--max-age 12` (default, 0 = no limit)
-- Parallel processing (default: 4, configurable)
-- Colored output with repo sizes
-- GitLab: Groups including subgroups
-- GitHub: Organizations and user accounts
+```bash
+# From URL (auto-detects provider)
+ztigit mirror https://github.com/zsoftly
+ztigit mirror https://gitlab.com/my-group
+
+# By org name
+ztigit mirror zsoftly --provider github
+ztigit mirror my-group --provider gitlab
+
+# Custom directory
+ztigit mirror zsoftly -p github --dir ./repos
+
+# Use SSH instead of HTTPS
+ztigit mirror zsoftly -p github --ssh
+
+# Include older repos (default skips repos >12 months old)
+ztigit mirror zsoftly -p github --max-age 24   # 24 months
+ztigit mirror zsoftly -p github --max-age 0    # no limit
+```
 
 ### Preflight Credential Validation
 
-Checks git credentials before starting clone operations:
-
+Checks git credentials before starting:
 - Tests HTTPS/SSH access with `git ls-remote`
 - Fails fast with actionable fix suggestions
 - Bypass with `--skip-preflight` if needed
 
-### Other Commands
+### Environment Protection
 
-- **protect**: Protect deployment environments by pattern
-- **environments**: List project environments with protection status
-- **auth login**: Configure authentication tokens (env vars or stdin)
-- **config**: Display current configuration
+```bash
+# List environments
+ztigit environments --project "org/repo" --provider github
+
+# Protect environments matching pattern
+ztigit protect --project "org/repo" --provider github --pattern "prod"
+ztigit protect --project "org/repo" --provider gitlab --pattern "staging"
+
+# Dry run
+ztigit protect --project "org/repo" -p github --pattern "prod" --dry-run
+```
+
+### Authentication
+
+```bash
+# Save token to keychain (reads from env var or prompts)
+export GITHUB_TOKEN=ghp_xxxx
+ztigit auth login -p github
+
+# Or pipe token
+echo $GITHUB_TOKEN | ztigit auth login -p github
+
+# View config
+ztigit config
+```
 
 ## Security
 
-- **Keychain storage**: Tokens stored in system keychain (macOS Keychain, Linux secret-service,
-  Windows Credential Manager)
+- **Keychain storage**: Tokens stored in system keychain (macOS Keychain, Linux libsecret, Windows Credential Manager)
 - **No CLI token flag**: Tokens read from env vars or stdin only (prevents shell history exposure)
 - **HTTPS enforcement**: Rejects HTTP URLs when token is present
 - **Secure permissions**: Config directory 0700, config file 0600
 
 ## Platforms
 
-| OS      | Architecture |
-| ------- | ------------ |
-| Linux   | amd64, arm64 |
-| macOS   | amd64, arm64 |
-| Windows | amd64        |
+| OS      | Architecture | Binary                       |
+| ------- | ------------ | ---------------------------- |
+| Linux   | amd64        | `ztigit-linux-amd64`         |
+| Linux   | arm64        | `ztigit-linux-arm64`         |
+| macOS   | amd64        | `ztigit-darwin-amd64`        |
+| macOS   | arm64        | `ztigit-darwin-arm64`        |
+| Windows | amd64        | `ztigit-windows-amd64.exe`   |
+| Windows | arm64        | `ztigit-windows-arm64.exe`   |
 
 ## Installation
 
-```bash
-# Linux (amd64)
-curl -L https://github.com/zsoftly/ztigit/releases/latest/download/ztigit-linux-amd64 -o ztigit
-chmod +x ztigit && sudo mv ztigit /usr/local/bin/
+### Quick Install (Recommended)
 
-# macOS (Apple Silicon)
-curl -L https://github.com/zsoftly/ztigit/releases/latest/download/ztigit-darwin-arm64 -o ztigit
-chmod +x ztigit && sudo mv ztigit /usr/local/bin/
-
-# macOS (Intel)
-curl -L https://github.com/zsoftly/ztigit/releases/latest/download/ztigit-darwin-amd64 -o ztigit
-chmod +x ztigit && sudo mv ztigit /usr/local/bin/
+**Windows:**
+```powershell
+irm https://github.com/zsoftly/ztigit/releases/latest/download/install.ps1 | iex
 ```
 
-## Quick Start
-
+**macOS/Linux/WSL:**
 ```bash
-# Set token (env var)
-export GITHUB_TOKEN=ghp_xxxx
-
-# Mirror all repos from an org
-ztigit mirror https://github.com/zsoftly
-
-# Or save token to keychain
-ztigit auth login -p github
+curl -fsSL https://github.com/zsoftly/ztigit/releases/latest/download/install.sh | bash
 ```
 
-**Full Changelog**: https://github.com/zsoftly/ztigit/releases
+### Manual Install
+
+See [docs/installation.md](docs/installation.md) for manual installation options.
+
+**Full Changelog**: https://github.com/zsoftly/ztigit/compare/0.0.2...0.0.3

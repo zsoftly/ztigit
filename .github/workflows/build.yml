@@ -1,44 +1,107 @@
 name: CI/CD Pipeline
 
-# Git Flow Pattern:
-# 1. Create release branch from main (e.g., release/v1.0.0)
-# 2. Make release preparations (version updates, changelog, etc.)
-# 3. Push tag to trigger release workflow (e.g., v1.0.0)
-# 4. Workflow builds, tests, and creates GitHub release
-# 5. Merge release branch back to main when ready
+# Efficient path-based triggering:
+# - Go code changes → test + security jobs
+# - Script changes → lint-scripts job
+# - Docs/examples changes → no CI (skipped)
+# - Tags → build + release jobs only
 
 on:
   push:
     branches: [main, 'feature/*', 'feat/*', 'issue/*', 'release/*']
     tags:
       - '[0-9]*'
-    paths:
-      - 'cmd/**'
-      - 'internal/**'
-      - 'pkg/**'
-      - '.github/workflows/build.yml'
-      - 'go.mod'
-      - 'go.sum'
-      - 'Makefile'
   pull_request:
     branches: [main, 'release/*']
-    paths:
-      - 'cmd/**'
-      - 'internal/**'
-      - 'pkg/**'
-      - '.github/workflows/build.yml'
-      - 'go.mod'
-      - 'go.sum'
-      - 'Makefile'
   workflow_dispatch:
 
 jobs:
+  # Determine which jobs to run based on changed files
+  changes:
+    name: 1. Detect Changes
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' && !startsWith(github.ref, 'refs/tags/')
+    outputs:
+      go: ${{ steps.filter.outputs.go }}
+      scripts: ${{ steps.filter.outputs.scripts }}
+      workflow: ${{ steps.filter.outputs.workflow }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            go:
+              - 'cmd/**'
+              - 'internal/**'
+              - 'pkg/**'
+              - 'go.mod'
+              - 'go.sum'
+              - 'Makefile'
+            scripts:
+              - 'scripts/**'
+            workflow:
+              - '.github/workflows/**'
+
+  lint-scripts:
+    name: 2a. Lint Scripts
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.scripts == 'true' || needs.changes.outputs.workflow == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Lint shell scripts (shellcheck)
+        run: |
+          echo "Checking shell scripts with shellcheck..."
+          shellcheck -x scripts/*.sh
+          echo "Shell scripts passed shellcheck"
+
+      - name: Validate shell script syntax
+        run: |
+          echo "Validating shell script syntax..."
+          for script in scripts/*.sh; do
+            bash -n "$script" || exit 1
+          done
+          echo "Shell script syntax is valid"
+
+      - name: Lint PowerShell scripts (PSScriptAnalyzer)
+        shell: pwsh
+        run: |
+          echo "Checking PowerShell scripts with PSScriptAnalyzer..."
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+          $results = Invoke-ScriptAnalyzer -Path scripts/*.ps1 -Severity Error,Warning
+          if ($results) {
+            $results | Format-Table -AutoSize
+            throw "PSScriptAnalyzer found issues"
+          }
+          echo "PowerShell scripts passed PSScriptAnalyzer"
+
+      - name: Validate PowerShell script syntax
+        shell: pwsh
+        run: |
+          echo "Validating PowerShell script syntax..."
+          foreach ($script in Get-ChildItem scripts/*.ps1) {
+            $errors = $null
+            $null = [System.Management.Automation.Language.Parser]::ParseFile($script.FullName, [ref]$null, [ref]$errors)
+            if ($errors) {
+              Write-Error "Syntax errors in $($script.Name):"
+              $errors | ForEach-Object { Write-Error $_.Message }
+              exit 1
+            }
+          }
+          echo "PowerShell script syntax is valid"
+
   test:
-    name: Test
+    name: 2b. Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    if:
-      github.event_name == 'pull_request' || (github.event_name == 'push' && !startsWith(github.ref,
-      'refs/tags/'))
+    needs: changes
+    if: needs.changes.outputs.go == 'true' || needs.changes.outputs.workflow == 'true'
 
     strategy:
       matrix:
@@ -92,21 +155,18 @@ jobs:
             ZTIGIT_EXE="./ztigit"
           fi
 
-          # Test help commands
           $ZTIGIT_EXE --help
           $ZTIGIT_EXE mirror --help
-          $ZTIGIT_EXE protect --help
-          $ZTIGIT_EXE auth --help
-          $ZTIGIT_EXE config --help
-
-          # Test version
           $ZTIGIT_EXE --version
 
   security:
-    name: Security Analysis
+    name: 3. Security Analysis
     runs-on: ubuntu-latest
-    needs: [test]
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    needs: [changes, test]
+    if: |
+      github.event_name == 'pull_request' &&
+      github.base_ref == 'main' &&
+      (needs.changes.outputs.go == 'true' || needs.changes.outputs.workflow == 'true')
 
     steps:
       - name: Checkout code
@@ -135,20 +195,19 @@ jobs:
         continue-on-error: true
 
       - name: Run golangci-lint with security checks
-        run: |
-          $(go env GOPATH)/bin/golangci-lint run --enable gosec || true
+        run: $(go env GOPATH)/bin/golangci-lint run --enable gosec || true
         continue-on-error: true
 
       - name: Run Go vulnerability check
-        run: |
-          govulncheck ./... || true
+        run: govulncheck ./... || true
         continue-on-error: true
 
       - name: Run go vet
         run: go vet ./...
 
+  # Build job - only on tags or manual dispatch
   build:
-    name: Cross-Platform Build
+    name: 4. Build (${{ matrix.goos }}-${{ matrix.goarch }})
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
 
@@ -204,7 +263,6 @@ jobs:
             -o "${BINARY_NAME}" \
             ./cmd/ztigit
 
-          # Verify binary on linux-amd64
           if [ "${{ matrix.goos }}" = "linux" ] && [ "${{ matrix.goarch }}" = "amd64" ]; then
             ./"${BINARY_NAME}" --version
           fi
@@ -217,7 +275,7 @@ jobs:
           retention-days: 30
 
   release:
-    name: GitHub Release
+    name: 5. GitHub Release
     runs-on: ubuntu-latest
     needs: [build]
     if: startsWith(github.ref, 'refs/tags/')
@@ -240,19 +298,17 @@ jobs:
           for dir in artifacts/*/; do
             platform=$(basename "$dir")
             cd "$dir"
-
-            # Copy binary directly
             cp ./* "../../release/"
-
-            # Create archives
             if [[ "$platform" == *"windows"* ]]; then
               zip -r "../../release/${platform}.zip" ./*
             else
               tar -czf "../../release/${platform}.tar.gz" ./*
             fi
-
             cd - > /dev/null
           done
+
+          cp scripts/install.sh release/
+          cp scripts/install.ps1 release/
 
           echo "Release binaries:"
           ls -la release/

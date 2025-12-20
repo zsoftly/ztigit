@@ -36,7 +36,12 @@ git branch -d release/v<version>
 | Windows amd64 | `ztigit-windows-amd64.exe` |
 | Windows arm64 | `ztigit-windows-arm64.exe` |
 
-Archives (`.tar.gz`, `.zip`) and `checksums.txt` included.
+Also included:
+
+- `install.sh` - Unix one-liner installer
+- `install.ps1` - Windows one-liner installer
+- Archives (`.tar.gz`, `.zip`)
+- `checksums.txt`
 
 ## Troubleshooting
 

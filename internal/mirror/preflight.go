@@ -6,11 +6,76 @@ import (
 	"fmt"
 	"net/url"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/zsoftly/ztigit/internal/provider"
 )
+
+// CheckGitInstalled verifies that git is available in PATH
+// Returns an error with platform-specific installation instructions if not found
+func CheckGitInstalled() error {
+	_, err := exec.LookPath("git")
+	if err != nil {
+		return errors.New(gitNotFoundMessage())
+	}
+	return nil
+}
+
+// gitNotFoundMessage returns platform-specific installation instructions
+func gitNotFoundMessage() string {
+	var instructions string
+
+	switch runtime.GOOS {
+	case "windows":
+		instructions = `  Install git using one of:
+
+    • winget (recommended):
+      winget install Git.Git
+
+    • Chocolatey:
+      choco install git
+
+    • Manual download:
+      https://git-scm.com/download/win
+
+  After installing, restart your terminal.`
+
+	case "darwin":
+		instructions = `  Install git using one of:
+
+    • Xcode Command Line Tools (recommended):
+      xcode-select --install
+
+    • Homebrew:
+      brew install git
+
+    • Manual download:
+      https://git-scm.com/download/mac`
+
+	case "linux":
+		instructions = `  Install git using your package manager:
+
+    • Debian/Ubuntu:
+      sudo apt install git
+
+    • Fedora:
+      sudo dnf install git
+
+    • Arch:
+      sudo pacman -S git
+
+    • Alpine:
+      sudo apk add git`
+
+	default:
+		instructions = `  Install git from:
+      https://git-scm.com/downloads`
+	}
+
+	return fmt.Sprintf("%s Git is not installed\n\n%s\n", red("✗"), instructions)
+}
 
 // PreflightResult contains the result of credential preflight check
 type PreflightResult struct {

@@ -98,6 +98,11 @@ func init() {
 }
 
 func runMirror(cmd *cobra.Command, args []string) error {
+	// Check git is installed before doing anything else
+	if err := mirror.CheckGitInstalled(); err != nil {
+		return err
+	}
+
 	ctx := context.Background()
 
 	target := args[0]

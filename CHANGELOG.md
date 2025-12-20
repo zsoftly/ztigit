@@ -5,6 +5,20 @@ All notable changes to ztigit will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), using
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.4] - 2025-12-20
+
+### Added
+
+- **Git installation check**: Validates git is installed before running mirror command
+  - Fails fast with platform-specific installation instructions
+  - Windows: winget, Chocolatey, or manual download
+  - macOS: xcode-select, Homebrew, or manual download
+  - Linux: apt, dnf, pacman, or apk depending on distro
+
+**Full Changelog**: https://github.com/zsoftly/ztigit/compare/0.0.3...0.0.4
+
+---
+
 ## [0.0.3] - 2025-12-20
 
 ### Added

@@ -45,7 +45,7 @@ DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download/${ASSET_NAME}"
 # Download
 info "Downloading ${ASSET_NAME}..."
 TMP_FILE=$(mktemp)
-trap "rm -f '$TMP_FILE'" EXIT
+trap 'rm -f "$TMP_FILE"' EXIT
 
 if command -v curl &> /dev/null; then
     curl -fsSL "$DOWNLOAD_URL" -o "$TMP_FILE"

@@ -9,6 +9,10 @@
     irm https://github.com/zsoftly/ztigit/releases/latest/download/install.ps1 | iex
 #>
 
+# PSScriptAnalyzer: Write-Host is intentional for colored installer output
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '')]
+param()
+
 $ErrorActionPreference = "Stop"
 
 $repo = "zsoftly/ztigit"

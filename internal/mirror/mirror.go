@@ -207,7 +207,7 @@ func (m *Mirror) mirrorRepos(ctx context.Context, repos []provider.Repository) (
 // mirrorRepo clones or updates a single repository
 func (m *Mirror) mirrorRepo(ctx context.Context, repo provider.Repository) Result {
 	// Clone directly into BaseDir/<repo-name>
-	repoDir := filepath.Join(m.options.BaseDir, repo.Name)
+	repoDir := filepath.Join(m.options.BaseDir, repo.FullPath)
 
 	// Format size string
 	sizeStr := ""
@@ -217,7 +217,7 @@ func (m *Mirror) mirrorRepo(ctx context.Context, repo provider.Repository) Resul
 
 	// Check if repository already exists
 	if isGitRepo(repoDir) {
-		fmt.Printf("  %s %s%s\n", cyan("↻"), repo.Name, sizeStr)
+		fmt.Printf("  %s %s%s\n", cyan("↻"), repo.FullPath, sizeStr)
 		err := m.updateRepo(ctx, repoDir)
 		if err != nil {
 			return Result{
@@ -233,7 +233,7 @@ func (m *Mirror) mirrorRepo(ctx context.Context, repo provider.Repository) Resul
 	}
 
 	// Clone the repository - order depends on SSH option
-	fmt.Printf("  %s %s%s\n", cyan("↓"), repo.Name, sizeStr)
+	fmt.Printf("  %s %s%s\n", cyan("↓"), repo.FullPath, sizeStr)
 
 	var primaryURL, fallbackURL string
 	var primaryMethod, fallbackMethod string
@@ -417,19 +417,19 @@ func PrintResults(results []Result) {
 		switch r.Action {
 		case "cloned":
 			cloned++
-			fmt.Printf("  %s %s %s\n", green("✓"), r.Repository.Name, faint(r.Duration.Round(time.Millisecond).String()))
+			fmt.Printf("  %s %s %s\n", green("✓"), r.Repository.FullPath, faint(r.Duration.Round(time.Millisecond).String()))
 		case "updated":
 			updated++
-			fmt.Printf("  %s %s %s\n", green("✓"), r.Repository.Name, faint(r.Duration.Round(time.Millisecond).String()))
+			fmt.Printf("  %s %s %s\n", green("✓"), r.Repository.FullPath, faint(r.Duration.Round(time.Millisecond).String()))
 		case "skipped":
 			skipped++
-			fmt.Printf("  %s %s %s\n", yellow("○"), r.Repository.Name, faint("(archived)"))
+			fmt.Printf("  %s %s %s\n", yellow("○"), r.Repository.FullPath, faint("(archived)"))
 		case "stale":
 			stale++
-			fmt.Printf("  %s %s %s\n", yellow("○"), r.Repository.Name, faint("(stale: "+r.Repository.LastUpdated.Format("2006-01-02")+")"))
+			fmt.Printf("  %s %s %s\n", yellow("○"), r.Repository.FullPath, faint("(stale: "+r.Repository.LastUpdated.Format("2006-01-02")+")"))
 		case "failed":
 			failed++
-			fmt.Printf("  %s %s %s\n", red("✗"), r.Repository.Name, faint(r.Error.Error()))
+			fmt.Printf("  %s %s %s\n", red("✗"), r.Repository.FullPath, faint(r.Error.Error()))
 		}
 	}
 

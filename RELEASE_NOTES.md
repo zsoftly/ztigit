@@ -7,6 +7,7 @@
 ztigit now validates that git is installed before running the mirror command. If git is not found, it provides platform-specific installation instructions:
 
 **Windows:**
+
 ```
 ✗ Git is not installed
 
@@ -25,6 +26,7 @@ ztigit now validates that git is installed before running the mirror command. If
 ```
 
 **macOS:**
+
 ```
 ✗ Git is not installed
 
@@ -41,6 +43,7 @@ ztigit now validates that git is installed before running the mirror command. If
 ```
 
 **Linux:**
+
 ```
 ✗ Git is not installed
 
@@ -66,11 +69,13 @@ ztigit now validates that git is installed before running the mirror command. If
 ### Quick Install (Recommended)
 
 **Windows:**
+
 ```powershell
 irm https://github.com/zsoftly/ztigit/releases/latest/download/install.ps1 | iex
 ```
 
 **macOS/Linux/WSL:**
+
 ```bash
 curl -fsSL https://github.com/zsoftly/ztigit/releases/latest/download/install.sh | bash
 ```
@@ -81,13 +86,13 @@ See [docs/installation.md](docs/installation.md) for manual installation options
 
 ## Platforms
 
-| OS      | Architecture | Binary                       |
-| ------- | ------------ | ---------------------------- |
-| Linux   | amd64        | `ztigit-linux-amd64`         |
-| Linux   | arm64        | `ztigit-linux-arm64`         |
-| macOS   | amd64        | `ztigit-darwin-amd64`        |
-| macOS   | arm64        | `ztigit-darwin-arm64`        |
-| Windows | amd64        | `ztigit-windows-amd64.exe`   |
-| Windows | arm64        | `ztigit-windows-arm64.exe`   |
+| OS      | Architecture | Binary                     |
+| ------- | ------------ | -------------------------- |
+| Linux   | amd64        | `ztigit-linux-amd64`       |
+| Linux   | arm64        | `ztigit-linux-arm64`       |
+| macOS   | amd64        | `ztigit-darwin-amd64`      |
+| macOS   | arm64        | `ztigit-darwin-arm64`      |
+| Windows | amd64        | `ztigit-windows-amd64.exe` |
+| Windows | arm64        | `ztigit-windows-arm64.exe` |
 
 **Full Changelog**: https://github.com/zsoftly/ztigit/compare/0.0.3...0.0.4

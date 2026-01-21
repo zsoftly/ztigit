@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -206,8 +207,26 @@ func (m *Mirror) mirrorRepos(ctx context.Context, repos []provider.Repository) (
 
 // mirrorRepo clones or updates a single repository
 func (m *Mirror) mirrorRepo(ctx context.Context, repo provider.Repository) Result {
-	// Clone directly into BaseDir/<repo-name>
+	// Validate the path before using it
+	if err := validatePath(repo.FullPath); err != nil {
+		return Result{
+			Repository: repo,
+			Action:     "failed",
+			Error:      fmt.Errorf("invalid path %q: %w", repo.FullPath, err),
+		}
+	}
+
+	// Clone into BaseDir/<full-path> to preserve hierarchy
 	repoDir := filepath.Join(m.options.BaseDir, repo.FullPath)
+
+	// Validate the full absolute path length (critical for Windows MAX_PATH)
+	if err := validateFullPathLength(repoDir); err != nil {
+		return Result{
+			Repository: repo,
+			Action:     "failed",
+			Error:      fmt.Errorf("full path too long %q: %w", repoDir, err),
+		}
+	}
 
 	// Format size string
 	sizeStr := ""
@@ -406,6 +425,127 @@ func isGitRepo(dir string) bool {
 		return false
 	}
 	return info.IsDir()
+}
+
+// validatePath checks if a path is safe for the filesystem
+func validatePath(fullPath string) error {
+	// Check for empty path
+	if fullPath == "" {
+		return fmt.Errorf("path cannot be empty")
+	}
+
+	// Check for invalid characters based on OS
+	invalidChars := getInvalidPathChars()
+	for _, char := range invalidChars {
+		if strings.ContainsRune(fullPath, char) {
+			return fmt.Errorf("path contains invalid character: %q", char)
+		}
+	}
+
+	// Check for path traversal attempts
+	if strings.Contains(fullPath, "..") {
+		return fmt.Errorf("path contains invalid sequence: ..")
+	}
+
+	// Check for Windows reserved names in path components
+	if runtime.GOOS == "windows" {
+		if err := validateWindowsReservedNames(fullPath); err != nil {
+			return err
+		}
+	}
+
+	// Check relative path component length (for early validation)
+	// Note: Full absolute path is validated separately in validateFullPathLength
+	maxRelativePathLength := getMaxRelativePathLength()
+	if len(fullPath) > maxRelativePathLength {
+		return fmt.Errorf("path exceeds maximum length of %d characters (got %d)", maxRelativePathLength, len(fullPath))
+	}
+
+	return nil
+}
+
+// validateFullPathLength validates the complete absolute path length
+// This is critical for Windows MAX_PATH (260 characters) which applies to the full path
+func validateFullPathLength(absolutePath string) error {
+	pathLen := len(absolutePath)
+
+	if runtime.GOOS == "windows" {
+		// Windows MAX_PATH is 260 characters (including null terminator)
+		// Use 259 as the safe limit
+		const windowsMaxPath = 259
+		if pathLen > windowsMaxPath {
+			return fmt.Errorf("absolute path length %d exceeds Windows MAX_PATH limit of %d", pathLen, windowsMaxPath)
+		}
+	} else {
+		// Unix-like systems typically have PATH_MAX of 4096
+		const unixMaxPath = 4096
+		if pathLen > unixMaxPath {
+			return fmt.Errorf("absolute path length %d exceeds system limit of %d", pathLen, unixMaxPath)
+		}
+	}
+
+	return nil
+}
+
+// validateWindowsReservedNames checks for Windows reserved filenames
+func validateWindowsReservedNames(path string) error {
+	// Windows reserved names (case-insensitive)
+	reserved := []string{
+		"CON", "PRN", "AUX", "NUL",
+		"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+		"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+	}
+
+	// Split path into components and check each
+	components := strings.Split(filepath.ToSlash(path), "/")
+	for _, component := range components {
+		// Remove extension if present
+		base := strings.TrimSuffix(component, filepath.Ext(component))
+		baseUpper := strings.ToUpper(base)
+
+		for _, reservedName := range reserved {
+			if baseUpper == reservedName {
+				return fmt.Errorf("path contains Windows reserved name: %q", component)
+			}
+		}
+
+		// Check for trailing dots or spaces (invalid on Windows)
+		if len(component) > 0 {
+			lastChar := component[len(component)-1]
+			if lastChar == '.' || lastChar == ' ' {
+				return fmt.Errorf("path component %q ends with invalid character (dot or space)", component)
+			}
+		}
+	}
+
+	return nil
+}
+
+// getInvalidPathChars returns characters that are invalid in filesystem paths
+func getInvalidPathChars() []rune {
+	if runtime.GOOS == "windows" {
+		// Windows has more restrictive path rules
+		return []rune{'<', '>', ':', '"', '|', '?', '*', '\x00'}
+	}
+	// Unix-like systems (Linux, macOS)
+	return []rune{'\x00'} // Only null character is invalid
+}
+
+// getMaxRelativePathLength returns the maximum relative path component length
+// This is used for early validation before the full absolute path is constructed
+func getMaxRelativePathLength() int {
+	switch runtime.GOOS {
+	case "windows":
+		// Conservative limit for the relative portion
+		// Assumes base directory might be ~60 chars (e.g., C:\Users\username\AppData\Local\...)
+		// Leaves room for safety: 259 - 60 = ~199
+		return 199
+	default:
+		// Unix-like systems have much higher limits
+		// NAME_MAX is typically 255 per component
+		// PATH_MAX is typically 4096 for full path
+		return 3000
+	}
 }
 
 // PrintResults prints the mirror results to stdout

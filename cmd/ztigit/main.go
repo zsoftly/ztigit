@@ -65,6 +65,12 @@ Examples:
   # Specify provider manually
   ztigit mirror zsoftly --provider github
 
+  # Multiple groups (comma-separated)
+  ztigit mirror group1,group2,group3 -p gitlab
+
+  # Multiple groups (space-separated with --groups flag)
+  ztigit mirror --groups "group1 group2 group3" -p gitlab
+
   # Include older repos (default skips repos not updated in 12 months)
   ztigit mirror zsoftly -p github --max-age 24
 
@@ -72,7 +78,7 @@ Repositories are cloned to $HOME/<org>/ by default.
 Skips archived repos and repos not updated within --max-age months.
 Authentication: Expects GITHUB_TOKEN/GITLAB_TOKEN env vars for API access.
 Git operations use your existing git credentials (HTTPS or SSH).`,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MaximumNArgs(1),
 	RunE: runMirror,
 }
 
@@ -84,6 +90,7 @@ var (
 	mirrorMaxAge        int
 	mirrorSkipPreflight bool
 	mirrorSSH           bool
+	mirrorGroups        string
 )
 
 func init() {
@@ -94,6 +101,7 @@ func init() {
 	mirrorCmd.Flags().IntVar(&mirrorMaxAge, "max-age", 12, "Skip repos not updated in this many months (0 = no limit)")
 	mirrorCmd.Flags().BoolVar(&mirrorSkipPreflight, "skip-preflight", false, "Skip git credential validation before cloning")
 	mirrorCmd.Flags().BoolVar(&mirrorSSH, "ssh", false, "Use SSH URLs instead of HTTPS for git operations")
+	mirrorCmd.Flags().StringVar(&mirrorGroups, "groups", "", "Space-separated list of groups to mirror (e.g., \"group1 group2 group3\")")
 	rootCmd.AddCommand(mirrorCmd)
 }
 
@@ -105,34 +113,71 @@ func runMirror(cmd *cobra.Command, args []string) error {
 
 	ctx := context.Background()
 
-	target := args[0]
-	var baseURL, orgName string
+	// Determine groups to mirror
+	var groups []string
+	var baseURL string
 	var providerType provider.ProviderType
 
-	// Parse target: URL or org name
-	if strings.HasPrefix(target, "https://") || strings.HasPrefix(target, "http://") {
-		// Parse URL: https://github.com/zsoftly -> provider=github, org=zsoftly
-		parsed, err := parseGitURL(target)
-		if err != nil {
-			return err
+	// Case 1: --groups flag provided (space-separated)
+	if mirrorGroups != "" {
+		groups = strings.Fields(mirrorGroups)
+
+		// Provider must be specified
+		if mirrorProvider == "" {
+			return fmt.Errorf("--provider required when using --groups flag")
 		}
-		baseURL = parsed.baseURL
-		orgName = parsed.orgName
-		providerType = parsed.provider
-	} else {
-		// Just org name, provider must be specified or detected from config
-		orgName = target
-		if mirrorProvider != "" {
-			providerType = provider.ProviderType(mirrorProvider)
-		} else {
-			return fmt.Errorf("provider required when not using URL. Use --provider github or --provider gitlab")
-		}
+		providerType = provider.ProviderType(mirrorProvider)
 		baseURL = cfg.GetBaseURL(string(providerType))
+	} else if len(args) == 0 {
+		// Case 2: No arguments and no --groups flag
+		return fmt.Errorf("either provide a URL/org or use --groups flag")
+	} else {
+		// Case 3: Argument provided
+		target := args[0]
+
+		// Check if comma-separated groups
+		if strings.Contains(target, ",") && !strings.HasPrefix(target, "http") {
+			// Comma-separated groups: "group1,group2,group3"
+			groups = strings.Split(target, ",")
+			for i := range groups {
+				groups[i] = strings.TrimSpace(groups[i])
+			}
+
+			// Provider must be specified
+			if mirrorProvider == "" {
+				return fmt.Errorf("--provider required when using comma-separated groups")
+			}
+			providerType = provider.ProviderType(mirrorProvider)
+			baseURL = cfg.GetBaseURL(string(providerType))
+		} else if strings.HasPrefix(target, "https://") || strings.HasPrefix(target, "http://") {
+			// Parse URL: https://github.com/zsoftly -> provider=github, org=zsoftly
+			parsed, err := parseGitURL(target)
+			if err != nil {
+				return err
+			}
+			baseURL = parsed.baseURL
+			groups = []string{parsed.orgName}
+			providerType = parsed.provider
+		} else {
+			// Single org name
+			groups = []string{target}
+			if mirrorProvider != "" {
+				providerType = provider.ProviderType(mirrorProvider)
+			} else {
+				return fmt.Errorf("provider required when not using URL. Use --provider github or --provider gitlab")
+			}
+			baseURL = cfg.GetBaseURL(string(providerType))
+		}
 	}
 
 	// Override provider if explicitly specified
 	if mirrorProvider != "" {
 		providerType = provider.ProviderType(mirrorProvider)
+	}
+
+	// Validate provider type (used in directory paths, must be safe)
+	if err := validateProviderType(providerType); err != nil {
+		return err
 	}
 
 	// Get token from environment or config (optional for public repos)
@@ -172,7 +217,7 @@ func runMirror(cmd *cobra.Command, args []string) error {
 		fmt.Printf("%s No token - public repos only\n\n", yellow("!"))
 	}
 
-	// Configure mirror options - default to $HOME/<org>/
+	// Configure mirror options
 	opts := mirror.Options{
 		BaseDir:       mirrorDir,
 		Parallel:      mirrorParallel,
@@ -183,20 +228,29 @@ func runMirror(cmd *cobra.Command, args []string) error {
 		SSH:           mirrorSSH,
 	}
 
+	// Determine base directory
 	if opts.BaseDir == "" {
 		homeDir, err := os.UserHomeDir()
 		if err != nil || homeDir == "" {
 			homeDir = "." // Fallback to current directory
 		}
-		opts.BaseDir = filepath.Join(homeDir, orgName)
+
+		// For multiple groups, use a common parent directory
+		if len(groups) > 1 {
+			// Use provider-specific directory: $HOME/gitlab-repos or $HOME/github-repos
+			opts.BaseDir = filepath.Join(homeDir, fmt.Sprintf("%s-repos", providerType))
+		} else {
+			// Single group: use $HOME/<group-name>
+			opts.BaseDir = filepath.Join(homeDir, groups[0])
+		}
 	}
 
 	// Create mirror and run
 	m := mirror.New(p, opts)
 
-	fmt.Printf("%s Mirroring to %s\n\n", cyan("→"), bold(opts.BaseDir))
+	fmt.Printf("%s Mirroring %d group(s) to %s\n\n", cyan("→"), len(groups), bold(opts.BaseDir))
 
-	results, err := m.MirrorGroups(ctx, []string{orgName})
+	results, err := m.MirrorGroups(ctx, groups)
 	if err != nil {
 		return err
 	}
@@ -545,6 +599,17 @@ func validateURLSecurity(baseURL, token string) error {
 		return fmt.Errorf("refusing to use HTTP with authentication token (would expose token in plaintext). Use HTTPS instead")
 	}
 	return nil
+}
+
+// validateProviderType ensures the provider type is safe for use in filesystem paths
+func validateProviderType(pt provider.ProviderType) error {
+	// Provider type must be one of the known types
+	switch pt {
+	case provider.ProviderGitLab, provider.ProviderGitHub:
+		return nil
+	default:
+		return fmt.Errorf("invalid provider type: %q (must be 'gitlab' or 'github')", pt)
+	}
 }
 
 // getTokenFromEnvOrStdin reads token from environment variable or stdin

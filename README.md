@@ -27,6 +27,10 @@ $env:GITHUB_TOKEN = "ghp_xxxx"    # PowerShell
 # Mirror repositories
 ztigit mirror https://github.com/zsoftly
 ztigit mirror zsoftly --provider github --dir ./repos
+
+# Mirror multiple groups
+ztigit mirror group1,group2,group3 -p gitlab
+ztigit mirror --groups "group1 group2 group3" -p gitlab
 ```
 
 ## Commands
@@ -45,6 +49,26 @@ See platform-specific examples:
 
 - **[Unix Examples](examples/unix.md)** - macOS, Linux, WSL
 - **[Windows Examples](examples/windows.md)** - PowerShell, Command Prompt
+
+## Directory Structure
+
+When mirroring repositories, ztigit preserves the full namespace hierarchy:
+
+**GitLab:**
+
+- `my-group/my-subgroup/my-project` → `$HOME/<group>/my-group/my-subgroup/my-project`
+- Nested subgroups are fully preserved
+- No flattening or namespace collisions
+
+**GitHub:**
+
+- `owner/repo` → `$HOME/<owner>/owner/repo`
+- Organization structure maintained
+
+**Multiple groups:**
+
+- Single group: `$HOME/<group-name>/...`
+- Multiple groups: `$HOME/gitlab-repos/...` or `$HOME/github-repos/...`
 
 ## Configuration
 

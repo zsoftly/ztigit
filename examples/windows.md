@@ -119,8 +119,8 @@ ztigit protect -P "org/repo" -p github --pattern "all"
 
 ### Daily Backup (Task Scheduler)
 
-**Recommended:** Use `ztigit auth login` first to store token in Windows Credential Manager.
-The token will be loaded automatically - no environment variable needed.
+**Recommended:** Use `ztigit auth login` first to store token in Windows Credential Manager. The
+token will be loaded automatically - no environment variable needed.
 
 Create `backup-repos.ps1`:
 
@@ -138,8 +138,8 @@ Task Scheduler command:
 powershell.exe -ExecutionPolicy Bypass -File C:\Scripts\backup-repos.ps1
 ```
 
-**Alternative:** If Credential Manager is unavailable, use environment variable.
-Ensure the token file has appropriate permissions (not world-readable).
+**Alternative:** If Credential Manager is unavailable, use environment variable. Ensure the token
+file has appropriate permissions (not world-readable).
 
 ```powershell
 $env:GITHUB_TOKEN = Get-Content "$env:USERPROFILE\.github_token"

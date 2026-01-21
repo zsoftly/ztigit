@@ -36,7 +36,7 @@ func (m *mockProvider) IsEnvironmentProtected(ctx context.Context, projectPath, 
 	return false, nil
 }
 
-func TestMirrorRepo_NestedPath(t *testing.T) {
+func TestMirrorRepo_GitLabSubgroup(t *testing.T) {
 	// 1. Setup
 	tempDir, err := os.MkdirTemp("", "ztigit-test-*")
 	if err != nil {
@@ -44,11 +44,12 @@ func TestMirrorRepo_NestedPath(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	// This repo mimics a nested subgroup structure (GitLab-style)
+	// This repo mimics a GitLab project in a nested subgroup
 	// Note: Using GitHub fixture for testing since we're testing path handling, not provider-specific behavior
 	repo := provider.Repository{
 		Name:     "my-project",
 		FullPath: "my-group/my-subgroup/my-project",
+		// Use a public, lightweight repo for the clone test
 		CloneURL: "https://github.com/git-fixtures/basic.git",
 		SSHUrl:   "git@github.com:git-fixtures/basic.git",
 	}

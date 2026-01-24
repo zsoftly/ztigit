@@ -123,8 +123,8 @@ func runMirror(cmd *cobra.Command, args []string) error {
 		groups = strings.Fields(mirrorGroups)
 
 		if len(groups) == 0 {
-+			return fmt.Errorf("no groups provided")
-+		}
+			return fmt.Errorf("no groups provided")
+		}
 
 		// Provider must be specified
 		if mirrorProvider == "" {
@@ -143,16 +143,16 @@ func runMirror(cmd *cobra.Command, args []string) error {
 		if strings.Contains(target, ",") && !strings.HasPrefix(target, "http") {
 			// Comma-separated groups: "group1,group2,group3"
 			rawGroups := strings.Split(target, ",")
-+			for _, g := range rawGroups {
-+				g = strings.TrimSpace(g)
-+				if g == "" {
-+					continue
-+				}
-+				groups = append(groups, g)
-+			}
-+			if len(groups) == 0 {
-+				return fmt.Errorf("no valid groups provided")
-+			}
+			for _, g := range rawGroups {
+				g = strings.TrimSpace(g)
+				if g == "" {
+					continue
+				}
+				groups = append(groups, g)
+			}
+			if len(groups) == 0 {
+				return fmt.Errorf("no valid groups provided")
+			}
 
 			// Provider must be specified
 			if mirrorProvider == "" {

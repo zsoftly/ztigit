@@ -89,8 +89,8 @@ ztigit protect -P "org/repo" -p github --pattern "all"
 
 ### Daily Backup (cron)
 
-**Recommended:** Use `ztigit auth login` first to store token in system keychain. The token
-will be loaded automatically - no environment variable needed.
+**Recommended:** Use `ztigit auth login` first to store token in system keychain. The token will be
+loaded automatically - no environment variable needed.
 
 ```bash
 #!/bin/bash
@@ -101,8 +101,8 @@ will be loaded automatically - no environment variable needed.
 ztigit mirror myorg -p github --dir ~/backups/github --max-age 0
 ```
 
-**Alternative:** If keychain is unavailable (headless servers), use environment variable
-with restrictive file permissions:
+**Alternative:** If keychain is unavailable (headless servers), use environment variable with
+restrictive file permissions:
 
 ```bash
 #!/bin/bash

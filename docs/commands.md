@@ -65,11 +65,13 @@ Clone or update repositories from groups/organizations.
 
 ```bash
 ztigit mirror <url-or-org> [options]
+ztigit mirror --groups "group1 group2 group3" [options]
 ```
 
 | Flag               | Required | Description                                                    |
 | ------------------ | -------- | -------------------------------------------------------------- |
-| `<url-or-org>`     | Yes      | URL or org/group name (positional)                             |
+| `<url-or-org>`     | No\*     | URL, org/group name, or comma-separated groups                 |
+| `--groups`         | No\*     | Space-separated list of groups to mirror                       |
 | `--provider`, `-p` | No       | Provider (required if not using URL)                           |
 | `--dir`, `-d`      | No       | Base directory (default: `$HOME/<org>`)                        |
 | `--max-age`        | No       | Skip repos not updated in N months (default: 12, 0 = no limit) |
@@ -78,6 +80,8 @@ ztigit mirror <url-or-org> [options]
 | `--skip-preflight` | No       | Skip git credential validation before cloning                  |
 | `--verbose`, `-v`  | No       | Verbose output                                                 |
 
+\*Either `<url-or-org>` or `--groups` must be provided.
+
 **Authentication:**
 
 - API: Set `GITHUB_TOKEN` or `GITLAB_TOKEN` environment variable
@@ -85,9 +89,16 @@ ztigit mirror <url-or-org> [options]
 - Default: Auto-detects working method (tests HTTPS first, falls back to SSH)
 - Use `--ssh` to skip HTTPS test and use SSH directly
 
-**GitLab**: Groups including subgroups are supported.
+**GitLab**: Groups including subgroups are supported. The full namespace hierarchy is preserved in
+the local directory structure (e.g., `my-group/my-subgroup/my-project`).
 
 **GitHub**: Both organizations and user accounts are supported.
+
+**Directory Structure:**
+
+- Single group: `$HOME/<group-name>/...`
+- Multiple groups: `$HOME/gitlab-repos/...` or `$HOME/github-repos/...`
+- GitLab subgroups: Full path preserved (e.g., `group/subgroup/project`)
 
 Examples:
 
@@ -110,6 +121,15 @@ ztigit mirror https://github.com/zsoftly -d ~/projects -v
 
 # Use SSH instead of HTTPS
 ztigit mirror https://github.com/zsoftly --ssh
+
+# Multiple groups (comma-separated)
+ztigit mirror group1,group2,group3 -p gitlab
+
+# Multiple groups (space-separated with --groups flag)
+ztigit mirror --groups "devops automation infrastructure" -p gitlab
+
+# Multiple groups with custom directory
+ztigit mirror --groups "team-a team-b" -p gitlab -d ~/company-repos
 ```
 
 Output:

@@ -5,6 +5,35 @@ All notable changes to ztigit will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), using
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.5] - 2026-01-23
+
+### Added
+
+- **Mirror multiple groups**: Mirror more than one GitLab group/GitHub org in a single command
+  - Comma-separated: `ztigit mirror group1,group2,group3 -p gitlab`
+  - Space-separated: `ztigit mirror --groups "group1 group2 group3" -p gitlab`
+- **GitLab subgroup nesting preserved**: Full namespace hierarchy is kept in the local directory
+  structure (e.g., `group/subgroup/project`)
+
+### Changed
+
+- **Default mirror directory for multiple groups**: Uses provider-specific directory
+  (`$HOME/gitlab-repos` / `$HOME/github-repos`) instead of `$HOME/<group>`
+- **Path validation**: Validate repository paths before cloning/updating and guard against overly
+  long paths (notably on Windows)
+
+### Fixed
+
+- **Mirror input handling**: Improved error handling for empty/invalid group inputs
+
+### Tests
+
+- **Mirror test coverage**: Added comprehensive mirror tests to reduce regressions
+
+**Full Changelog**: https://github.com/zsoftly/ztigit/compare/0.0.4...0.0.5
+
+---
+
 ## [0.0.4] - 2025-12-20
 
 ### Added

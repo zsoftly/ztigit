@@ -1,66 +1,37 @@
-# ztigit v0.0.4 Release Notes
+# ztigit v0.0.5 Release Notes
 
 ## What's New
 
-### Git Installation Check
+### Mirror multiple groups
 
-ztigit now validates that git is installed before running the mirror command. If git is not found, it provides platform-specific installation instructions:
+Mirror more than one GitLab group / GitHub org in a single command:
 
-**Windows:**
+```bash
+# Comma-separated
+ztigit mirror group1,group2,group3 -p gitlab
 
-```
-✗ Git is not installed
-
-  Install git using one of:
-
-    • winget (recommended):
-      winget install Git.Git
-
-    • Chocolatey:
-      choco install git
-
-    • Manual download:
-      https://git-scm.com/download/win
-
-  After installing, restart your terminal.
+# Space-separated
+ztigit mirror --groups "group1 group2 group3" -p gitlab
 ```
 
-**macOS:**
+When mirroring multiple groups, the default directory becomes provider-specific:
 
-```
-✗ Git is not installed
+- GitLab: `$HOME/gitlab-repos/...`
+- GitHub: `$HOME/github-repos/...`
 
-  Install git using one of:
+### Preserve GitLab subgroup nesting
 
-    • Xcode Command Line Tools (recommended):
-      xcode-select --install
+GitLab subgroup paths are now preserved in the local directory structure. For example,
+`my-group/my-subgroup/my-project` mirrors into `BaseDir/my-group/my-subgroup/my-project`.
 
-    • Homebrew:
-      brew install git
+### Better path validation + clearer errors
 
-    • Manual download:
-      https://git-scm.com/download/mac
-```
+Mirroring now validates repository paths before cloning/updating and surfaces clearer errors for
+invalid inputs (including guarding against overly long paths on Windows).
 
-**Linux:**
+### More mirror tests
 
-```
-✗ Git is not installed
-
-  Install git using your package manager:
-
-    • Debian/Ubuntu:
-      sudo apt install git
-
-    • Fedora:
-      sudo dnf install git
-
-    • Arch:
-      sudo pacman -S git
-
-    • Alpine:
-      sudo apk add git
-```
+Added a comprehensive test suite around mirror behavior to reduce regressions.
 
 ---
 
@@ -95,4 +66,4 @@ See [docs/installation.md](docs/installation.md) for manual installation options
 | Windows | amd64        | `ztigit-windows-amd64.exe` |
 | Windows | arm64        | `ztigit-windows-arm64.exe` |
 
-**Full Changelog**: https://github.com/zsoftly/ztigit/compare/0.0.3...0.0.4
+**Full Changelog**: https://github.com/zsoftly/ztigit/compare/0.0.4...0.0.5
